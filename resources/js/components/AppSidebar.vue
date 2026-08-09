@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/collapsible';
 import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { ChevronRight, LayoutDashboard, Users, ShieldCheck, KeyRound, Building2, Activity, UserRoundCog, Palette, type LucideIcon } from 'lucide-vue-next';
+import { ChevronRight, LayoutDashboard, Users, ShieldCheck, KeyRound, Building2, Activity, UserRoundCog, Palette, CreditCard, type LucideIcon } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const iconMap: Record<string, LucideIcon> = {
@@ -35,6 +35,7 @@ const iconMap: Record<string, LucideIcon> = {
     Activity,
     UserRoundCog,
     Palette,
+    CreditCard,
     Settings: UserRoundCog,
 };
 

@@ -5,6 +5,7 @@ namespace Modules\CORE\Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Modules\CORE\Models\SubscriptionPlan;
 use Modules\CORE\Models\Tenant;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -19,6 +20,7 @@ class CORESeeder extends Seeder
         $this->seedPermissions();
         $this->seedRoles();
         $this->seedTenants();
+        $this->seedSubscriptionPlans();
         $this->seedSuperAdmin();
 
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
@@ -37,8 +39,94 @@ class CORESeeder extends Seeder
             }
         }
 
+        // Permissions for the sellable Personal Accounting module.
+        $personalAccountingPermissions = collect([
+            'personal-accounting.view',
+            'personal-accounting.transactions.view',
+            'personal-accounting.transactions.create',
+            'personal-accounting.transactions.update',
+            'personal-accounting.transactions.delete',
+            'personal-accounting.accounts.view',
+            'personal-accounting.accounts.manage',
+            'personal-accounting.budgets.view',
+            'personal-accounting.budgets.manage',
+            'personal-accounting.goals.view',
+            'personal-accounting.goals.manage',
+            'personal-accounting.reports.view',
+        ]);
+
+        foreach ($personalAccountingPermissions as $permission) {
+            $permissions->push($permission);
+        }
+
         foreach ($permissions->unique() as $name) {
             Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
+        }
+    }
+
+    private function seedSubscriptionPlans(): void
+    {
+        $plans = [
+            [
+                'module' => 'personal_accounting',
+                'name' => 'Personal Accounting Lite',
+                'slug' => 'personal-accounting-lite',
+                'description' => 'Core personal money tracking for individuals.',
+                'price_monthly' => 399,
+                'price_yearly' => 3990,
+                'features' => [
+                    'Unlimited income & expense tracking',
+                    'Cash & mobile banking accounts',
+                    'Monthly budgets',
+                    'Recurring transactions',
+                ],
+                'permissions' => [
+                    'personal-accounting.view',
+                    'personal-accounting.transactions.view',
+                    'personal-accounting.transactions.create',
+                    'personal-accounting.transactions.update',
+                    'personal-accounting.transactions.delete',
+                    'personal-accounting.accounts.view',
+                    'personal-accounting.accounts.manage',
+                    'personal-accounting.budgets.view',
+                    'personal-accounting.budgets.manage',
+                    'personal-accounting.goals.view',
+                    'personal-accounting.reports.view',
+                ],
+            ],
+            [
+                'module' => 'personal_accounting',
+                'name' => 'Personal Accounting Pro',
+                'slug' => 'personal-accounting-pro',
+                'description' => 'Advanced analytics, savings goals and loans.',
+                'price_monthly' => 799,
+                'price_yearly' => 7990,
+                'features' => [
+                    'Everything in Lite',
+                    'Savings goals & projections',
+                    'Advanced reports & analytics',
+                    'Personal loans tracking',
+                    'Priority support',
+                ],
+                'permissions' => [
+                    'personal-accounting.view',
+                    'personal-accounting.transactions.view',
+                    'personal-accounting.transactions.create',
+                    'personal-accounting.transactions.update',
+                    'personal-accounting.transactions.delete',
+                    'personal-accounting.accounts.view',
+                    'personal-accounting.accounts.manage',
+                    'personal-accounting.budgets.view',
+                    'personal-accounting.budgets.manage',
+                    'personal-accounting.goals.view',
+                    'personal-accounting.goals.manage',
+                    'personal-accounting.reports.view',
+                ],
+            ],
+        ];
+
+        foreach ($plans as $plan) {
+            SubscriptionPlan::firstOrCreate(['slug' => $plan['slug']], $plan);
         }
     }
 

@@ -5,6 +5,7 @@ use Modules\CORE\Http\Controllers\ActivityLogController;
 use Modules\CORE\Http\Controllers\DashboardController;
 use Modules\CORE\Http\Controllers\PermissionController;
 use Modules\CORE\Http\Controllers\RoleController;
+use Modules\CORE\Http\Controllers\SubscriptionController;
 use Modules\CORE\Http\Controllers\TenantController;
 use Modules\CORE\Http\Controllers\UserController;
 
@@ -50,4 +51,10 @@ Route::middleware(['web', 'auth', 'verified'])->group(function (): void {
     Route::get('admin/activity-logs', [ActivityLogController::class, 'index'])
         ->middleware('can:activity-log.view')
         ->name('activity-logs.index');
+
+    Route::middleware('can:permission.view')->group(function (): void {
+        Route::get('admin/subscriptions', [SubscriptionController::class, 'index'])->name('subscriptions.index');
+        Route::post('admin/subscriptions/assign', [SubscriptionController::class, 'assign'])->name('subscriptions.assign');
+        Route::post('admin/subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
+    });
 });

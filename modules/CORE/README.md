@@ -14,6 +14,7 @@ It is a fully independent module inside a Modular Monolith and owns the **Admin 
 | Roles (CRUD + permission assignment) | `Services/RoleService.php`, `Controllers/RoleController.php`, `Pages/Roles/*` |
 | Permissions (CRUD) | `Services/PermissionService.php`, `Controllers/PermissionController.php`, `Pages/Permissions/*` |
 | Activity Logs | `Services/ActivityLogService.php`, `Controllers/ActivityLogController.php`, `Pages/ActivityLogs/*` |
+| Subscriptions | `Models/SubscriptionPlan.php`, `Models/TenantSubscription.php`, `Services/SubscriptionService.php`, `Controllers/SubscriptionController.php`, `Pages/Subscriptions/*` |
 | Reusable components | `Resources/js/Components/*` (DataTable, PageHeader, StatCard, StatusBadge, ConfirmDialog, FlashMessage, form components) |
 
 ## Layered architecture (SOLID)
@@ -52,6 +53,41 @@ permission.view ...       tenant.view   tenant.create   tenant.update   tenant.d
 
 Roles seeded: `super-admin` (bypasses all gates), `admin`, `manager`, `user`.
 The `super-admin` bypass is registered as a `Gate::before` in `COREServiceProvider`.
+
+### Module permissions
+The CORE module owns and seeds permissions for every sellable module. For **Personal
+Accounting** it seeds:
+
+```
+personal-accounting.view
+personal-accounting.transactions.{view,create,update,delete}
+personal-accounting.accounts.{view,manage}
+personal-accounting.budgets.{view,manage}
+personal-accounting.goals.{view,manage}
+personal-accounting.reports.view
+```
+
+These appear in **Access Control → Permissions** and can be assigned to any role like any other
+permission. The Personal Accounting routes are gated by `can:personal-accounting.view`.
+
+## Subscriptions (managed by CORE)
+
+CORE also manages **module subscriptions**. A `SubscriptionPlan` defines a sellable plan for a
+module and the set of permissions it grants. A `TenantSubscription` links a tenant to the plan.
+
+Two Personal Accounting plans are seeded:
+- **Personal Accounting Lite** (৳399/mo) — core tracking, accounts, budgets, recurring.
+- **Personal Accounting Pro** (৳799/mo) — adds savings goals, loans, advanced reports.
+
+`SubscriptionService` provides:
+- `resolvePermissions(tenantId, module)` — the effective permission names for a tenant's active plan.
+- `subscribe(tenant, plan, module, ?overrides)` — assign a plan and sync its permissions onto the
+  tenant's users (so CORE can adjust what a subscription grants).
+- `tenantHasPermission(tenantId, module, permission)` — check access.
+- `cancel` (via `SubscriptionController`) — revokes the module permissions from the tenant's users.
+
+Manage everything at **Workspace → Subscriptions** (assign a plan to a tenant, view active
+subscriptions, cancel).
 
 ## Setup
 
