@@ -146,10 +146,16 @@ function quickAdd(type: 'income' | 'expense' | 'transfer') {
                         <CategoryIcon :icon="txn.category?.icon" :color="txn.category?.color ?? txn.account?.color" />
                         <div class="min-w-0 flex-1">
                             <p class="truncate text-sm font-medium text-foreground">{{ txn.note || txn.category?.name || txn.type }}</p>
-                            <p class="text-xs text-muted-foreground">{{ formatDate(txn.date) }} · {{ txn.account?.name }}</p>
+                            <p class="text-xs text-muted-foreground">
+                                {{ formatDate(txn.date) }} ·
+                                <template v-if="txn.type === 'transfer'">
+                                    {{ txn.account?.name }} → {{ txn.to_account?.name }}
+                                </template>
+                                <template v-else>{{ txn.account?.name }}</template>
+                            </p>
                         </div>
                         <div class="text-right">
-                            <MoneyText :value="txn.amount" :type="txn.type" signed class="font-semibold" />
+                            <MoneyText :value="txn.amount" :type="txn.type" :signed="txn.type !== 'transfer'" class="font-semibold" />
                         </div>
                     </li>
                     <li v-if="recentTransactions.length === 0" class="px-5 py-10 text-center text-sm text-muted-foreground">

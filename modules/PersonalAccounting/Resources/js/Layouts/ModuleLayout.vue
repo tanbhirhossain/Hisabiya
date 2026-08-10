@@ -10,6 +10,8 @@ import {
     Target,
     PiggyBank,
     BarChart3,
+    HandCoins,
+    UserRound,
     CircleUser,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
@@ -32,6 +34,8 @@ const navItems = [
     { title: 'Accounts', href: '/personal/accounts', icon: Wallet, route: 'personal.accounts.index' },
     { title: 'Budgets', href: '/personal/budgets', icon: Target, route: 'personal.budgets.index' },
     { title: 'Savings Goals', href: '/personal/goals', icon: PiggyBank, route: 'personal.goals.index' },
+    { title: 'Loans', href: '/personal/loans', icon: HandCoins, route: 'personal.loans.index' },
+    { title: 'Contacts', href: '/personal/contacts', icon: UserRound, route: 'personal.contacts.index' },
     { title: 'Reports', href: '/personal/reports', icon: BarChart3, route: 'personal.reports.index' },
 ];
 

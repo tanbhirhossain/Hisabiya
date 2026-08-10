@@ -16,7 +16,33 @@ function paUser(): User
 {
     $tenant = Tenant::create(['name' => 'PA Tenant', 'slug' => 'pa-tenant', 'status' => 'active', 'plan' => 'free']);
 
-    return User::factory()->create(['tenant_id' => $tenant->id]);
+    $user = User::factory()->create(['tenant_id' => $tenant->id]);
+
+    // Grant the Personal Accounting module permissions so the middleware allows access.
+    $permissions = [
+        'personal-accounting.view',
+        'personal-accounting.transactions.view',
+        'personal-accounting.transactions.create',
+        'personal-accounting.transactions.update',
+        'personal-accounting.transactions.delete',
+        'personal-accounting.accounts.view',
+        'personal-accounting.accounts.manage',
+        'personal-accounting.budgets.view',
+        'personal-accounting.budgets.manage',
+        'personal-accounting.goals.view',
+        'personal-accounting.goals.manage',
+        'personal-accounting.reports.view',
+        'personal-accounting.loans.view',
+        'personal-accounting.loans.manage',
+        'personal-accounting.contacts.view',
+        'personal-accounting.contacts.manage',
+    ];
+    foreach ($permissions as $name) {
+        Spatie\Permission\Models\Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
+    }
+    $user->givePermissionTo($permissions);
+
+    return $user;
 }
 
 function paAccount(User $user): PersonalAccount
@@ -301,4 +327,84 @@ test('goal store and contribute endpoints work', function () {
     $this->post(route('personal.goals.contribute', $goal), ['amount' => 5000])->assertRedirect();
 
     expect($goal->fresh()->current_amount)->toBe('5000.00');
+});
+
+// --- Transfer (two-account) & Loan feature tests -----------------------------
+
+test('transfer moves money between two accounts', function () {
+    $user = paUser();
+    $this->actingAs($user);
+    $from = paAccount($user);
+    $to = \Modules\PersonalAccounting\Models\PersonalAccount::create([
+        'tenant_id' => $user->tenant_id, 'user_id' => $user->id,
+        'name' => 'Savings', 'type' => 'bank', 'currency' => 'BDT', 'balance' => 0,
+    ]);
+    $from->update(['balance' => 10000]);
+
+    $service = app(\Modules\PersonalAccounting\Services\PersonalTransactionService::class);
+    $txn = $service->createTransaction([
+        'tenant_id' => $user->tenant_id, 'user_id' => $user->id,
+        'account_id' => $from->id, 'to_account_id' => $to->id,
+        'type' => 'transfer', 'amount' => 3000, 'date' => now()->toDateString(),
+    ]);
+
+    expect($from->fresh()->balance)->toBe('7000.00');
+    expect($to->fresh()->balance)->toBe('3000.00');
+    expect($txn->to_account_id)->toBe($to->id);
+});
+
+test('loan create with lent direction creates an expense transaction', function () {
+    $user = paUser();
+    $this->actingAs($user);
+    $account = paAccount($user);
+    $account->update(['balance' => 50000]);
+
+    $contact = \Modules\PersonalAccounting\Models\PersonalContact::create([
+        'tenant_id' => $user->tenant_id, 'user_id' => $user->id, 'name' => 'Rahim', 'type' => 'person',
+    ]);
+
+    $service = app(\Modules\PersonalAccounting\Services\PersonalLoanService::class);
+    $loan = $service->create([
+        'tenant_id' => $user->tenant_id, 'user_id' => $user->id,
+        'name' => 'Personal loan', 'direction' => 'lent',
+        'contact_id' => $contact->id, 'principal_amount' => 20000,
+        'interest_rate' => 0, 'start_date' => now()->toDateString(),
+        'payment_frequency' => 'monthly', 'payment_amount' => 5000,
+        'account_id' => $account->id,
+    ]);
+
+    expect($loan->remaining_balance)->toBe('20000.00');
+    expect($account->fresh()->balance)->toBe('30000.00');
+    expect(\Modules\PersonalAccounting\Models\PersonalTransaction::where('note', 'like', 'Lent to%')->count())->toBe(1);
+});
+
+test('loan payment reduces remaining balance and creates income for lent', function () {
+    $user = paUser();
+    $this->actingAs($user);
+    $account = paAccount($user);
+
+    $loan = \Modules\PersonalAccounting\Models\PersonalLoan::create([
+        'tenant_id' => $user->tenant_id, 'user_id' => $user->id,
+        'name' => 'Lent', 'direction' => 'lent', 'principal_amount' => 10000,
+        'remaining_balance' => 10000, 'total_paid' => 0,
+        'interest_rate' => 0, 'interest_type' => 'simple', 'status' => 'active',
+        'start_date' => now()->toDateString(), 'payment_frequency' => 'monthly', 'payment_amount' => 1000,
+        'currency' => 'BDT',
+    ]);
+
+    $service = app(\Modules\PersonalAccounting\Services\PersonalLoanService::class);
+    $service->recordPayment($loan, 4000, $account->id);
+
+    expect($loan->fresh()->remaining_balance)->toBe('6000.00');
+    expect($loan->fresh()->total_paid)->toBe('4000.00');
+    expect($account->fresh()->balance)->toBe('4000.00');
+    expect(\Modules\PersonalAccounting\Models\PersonalLoanPayment::where('loan_id', $loan->id)->count())->toBe(1);
+});
+
+test('loans and contacts pages render', function () {
+    $user = paUser();
+    $this->actingAs($user);
+
+    $this->get(route('personal.loans.index'))->assertOk();
+    $this->get(route('personal.contacts.index'))->assertOk();
 });

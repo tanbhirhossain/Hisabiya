@@ -5,6 +5,7 @@ interface TransactionPayload {
     type: 'income' | 'expense' | 'transfer';
     amount: number | string;
     account_id: number | string;
+    to_account_id?: number | string | null;
     category_id?: number | string | null;
     date: string;
     note?: string;
@@ -21,6 +22,7 @@ const form = useForm<TransactionPayload>({
     type: 'expense',
     amount: '',
     account_id: '',
+    to_account_id: null,
     category_id: null,
     date: new Date().toISOString().slice(0, 10),
     note: '',
@@ -50,6 +52,7 @@ function openEdit(transaction: Record<string, any>) {
     form.type = transaction.type;
     form.amount = transaction.amount;
     form.account_id = transaction.account_id;
+    form.to_account_id = transaction.to_account_id ?? null;
     form.category_id = transaction.category_id;
     form.date = transaction.date;
     form.note = transaction.note ?? '';

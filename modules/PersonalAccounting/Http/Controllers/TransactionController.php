@@ -28,7 +28,7 @@ class TransactionController extends Controller
         $this->setup->ensureSystemCategories($tenantId);
 
         $query = PersonalTransaction::query()
-            ->with(['account:id,name,color', 'category:id,name,icon,color'])
+            ->with(['account:id,name,color', 'toAccount:id,name,color', 'category:id,name,icon,color'])
             ->when($request->filled('from'), fn ($q) => $q->where('date', '>=', $request->string('from')))
             ->when($request->filled('to'), fn ($q) => $q->where('date', '<=', $request->string('to')))
             ->when($request->filled('type'), fn ($q) => $q->where('type', $request->string('type')))
@@ -50,6 +50,11 @@ class TransactionController extends Controller
         $data = $request->validate($this->rules());
         $user = $request->user();
         $tenantId = (int) $user->tenant_id;
+
+        // For a transfer the destination is `to_account_id`; clear it otherwise.
+        if (($data['type'] ?? '') !== 'transfer') {
+            $data['to_account_id'] = null;
+        }
 
         // `frequency` belongs to a recurring template, not the transaction row.
         $transactionData = array_diff_key($data, array_flip(['frequency', 'is_recurring']));
@@ -87,6 +92,11 @@ class TransactionController extends Controller
     {
         $data = $request->validate($this->rules());
 
+        // For a transfer the destination is `to_account_id`; clear it otherwise.
+        if (($data['type'] ?? '') !== 'transfer') {
+            $data['to_account_id'] = null;
+        }
+
         // `frequency` is not a transaction column; drop it before updating.
         $transactionData = array_diff_key($data, array_flip(['frequency', 'is_recurring']));
 
@@ -119,6 +129,7 @@ class TransactionController extends Controller
             'type' => ['required', Rule::in(['income', 'expense', 'transfer'])],
             'amount' => ['required', 'numeric', 'gt:0'],
             'account_id' => ['required', 'integer', 'exists:personal_accounts,id'],
+            'to_account_id' => ['nullable', 'integer', 'different:account_id', 'exists:personal_accounts,id'],
             'category_id' => ['nullable', 'integer', 'exists:personal_categories,id'],
             'date' => ['required', 'date'],
             'note' => ['nullable', 'string', 'max:500'],

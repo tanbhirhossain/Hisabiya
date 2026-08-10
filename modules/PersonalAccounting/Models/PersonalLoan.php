@@ -4,6 +4,8 @@ namespace Modules\PersonalAccounting\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\PersonalAccounting\Traits\HasTenant;
 use Modules\PersonalAccounting\Traits\HasUser;
 
@@ -27,6 +29,16 @@ class PersonalLoan extends Model
         'due_date' => 'date',
         'next_payment_date' => 'date',
     ];
+
+    public function contact(): BelongsTo
+    {
+        return $this->belongsTo(PersonalContact::class, 'contact_id');
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(PersonalLoanPayment::class, 'loan_id');
+    }
 
     public const DIRECTIONS = ['borrowed', 'lent'];
     public const STATUSES = ['active', 'completed', 'overdue', 'closed'];

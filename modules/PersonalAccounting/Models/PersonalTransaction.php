@@ -31,6 +31,11 @@ class PersonalTransaction extends Model
         return $this->belongsTo(PersonalAccount::class, 'account_id');
     }
 
+    public function toAccount(): BelongsTo
+    {
+        return $this->belongsTo(PersonalAccount::class, 'to_account_id');
+    }
+
     public function category(): BelongsTo
     {
         return $this->belongsTo(PersonalCategory::class, 'category_id');

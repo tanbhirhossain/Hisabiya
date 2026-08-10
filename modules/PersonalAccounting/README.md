@@ -78,7 +78,25 @@ recurring toggle, attachment), `AddAccountModal`, `AddBudgetModal`, `ConfirmDial
 - `Accounts` + `Accounts/Show` — account card grid + per-account history.
 - `Budgets` — progress bars (green/amber/red), add/delete.
 - `Goals` — progress circles, contribute/withdraw, add modal.
+- `Loans` — lend ("lent") and borrow ("borrowed") tracking with contacts, principal/remaining
+  balances, scheduled payments, and **record payment** (optionally moves money via an account).
+- `Contacts` — people/businesses you lend to or borrow from.
 - `Reports` — date-range picker, monthly trend line chart, income/expense doughnuts, net-worth chart, CSV export.
+
+## Transfers (two accounts)
+
+Transfers record **two** accounts: `account_id` (from) and `to_account_id` (to). The
+`CreateTransactionAction` / `PersonalTransactionService` debit the source and credit the
+destination atomically inside a database transaction, and reverse both on update/delete.
+
+## Loans & contacts (data layer)
+
+- `personal_loans` — `direction` (`lent` | `borrowed`), `principal_amount`, `remaining_balance`,
+  `total_paid`, interest, payment schedule, `contact_id`, `account_id`.
+- `personal_loan_payments` — per-payment history (`amount`, `principal_part`, `interest_part`).
+- `personal_contacts` — people/businesses the user lends to or borrows from.
+- `PersonalLoanService` — `create()`, `recordPayment()`, `projection()` (SOLID; optionally moves
+  money through `PersonalTransactionService`).
 
 Routes are registered in `Routes/web.php` under the `/personal` prefix; controllers in
 `Http/Controllers/` feed each Inertia page and validate input.

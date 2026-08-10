@@ -3,8 +3,10 @@
 use Illuminate\Support\Facades\Route;
 use Modules\PersonalAccounting\Http\Controllers\AccountController;
 use Modules\PersonalAccounting\Http\Controllers\BudgetController;
+use Modules\PersonalAccounting\Http\Controllers\ContactController;
 use Modules\PersonalAccounting\Http\Controllers\DashboardController;
 use Modules\PersonalAccounting\Http\Controllers\GoalController;
+use Modules\PersonalAccounting\Http\Controllers\LoanController;
 use Modules\PersonalAccounting\Http\Controllers\ReportController;
 use Modules\PersonalAccounting\Http\Controllers\TransactionController;
 
@@ -33,4 +35,17 @@ Route::middleware(['web', 'auth', 'verified', 'can:personal-accounting.view'])->
     Route::delete('/goals/{goal}', [GoalController::class, 'destroy'])->name('goals.destroy');
 
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+
+    Route::middleware('can:personal-accounting.loans.view')->group(function (): void {
+        Route::get('/loans', [LoanController::class, 'index'])->name('loans.index');
+        Route::post('/loans', [LoanController::class, 'store'])->middleware('can:personal-accounting.loans.manage')->name('loans.store');
+        Route::post('/loans/{loan}/pay', [LoanController::class, 'pay'])->middleware('can:personal-accounting.loans.manage')->name('loans.pay');
+        Route::delete('/loans/{loan}', [LoanController::class, 'destroy'])->middleware('can:personal-accounting.loans.manage')->name('loans.destroy');
+    });
+
+    Route::middleware('can:personal-accounting.contacts.view')->group(function (): void {
+        Route::get('/contacts', [ContactController::class, 'index'])->name('contacts.index');
+        Route::post('/contacts', [ContactController::class, 'store'])->middleware('can:personal-accounting.contacts.manage')->name('contacts.store');
+        Route::delete('/contacts/{contact}', [ContactController::class, 'destroy'])->middleware('can:personal-accounting.contacts.manage')->name('contacts.destroy');
+    });
 });

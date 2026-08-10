@@ -210,7 +210,12 @@ function goto(url: string | null) {
                                         <span class="font-medium text-foreground">{{ txn.category?.name ?? '—' }}</span>
                                     </div>
                                 </td>
-                                <td class="px-4 py-3 text-muted-foreground">{{ txn.account?.name }}</td>
+                                <td class="px-4 py-3 text-muted-foreground">
+                                    <template v-if="txn.type === 'transfer'">
+                                        {{ txn.account?.name }} <span class="text-xs text-muted-foreground/70">→</span> {{ txn.to_account?.name }}
+                                    </template>
+                                    <template v-else>{{ txn.account?.name }}</template>
+                                </td>
                                 <td class="px-4 py-3"><TypeBadge :type="txn.type" /></td>
                                 <td class="px-4 py-3 text-right"><MoneyText :value="txn.amount" :type="txn.type" signed class="font-semibold" /></td>
                             </tr>

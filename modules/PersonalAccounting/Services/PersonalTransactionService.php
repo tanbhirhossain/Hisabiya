@@ -29,24 +29,16 @@ class PersonalTransactionService implements PersonalTransactionServiceInterface
         $transaction = $this->repository->findOrFail($id);
 
         return DB::transaction(function () use ($transaction, $data): PersonalTransaction {
-            // Reverse the previous balance effect.
-            $account = PersonalAccount::findOrFail($transaction->account_id);
-            $this->updateBalance->handle(
-                $account,
-                -1 * $this->updateBalance->deltaFor($transaction->type, $transaction->amount)
-            );
+            // Reverse the previous balance effect(s).
+            $this->reverseEffects($transaction);
 
             $transaction->update($data);
             $transaction->refresh();
 
-            // Apply the new balance effect.
-            $updatedAccount = PersonalAccount::findOrFail($transaction->account_id);
-            $this->updateBalance->handle(
-                $updatedAccount,
-                $this->updateBalance->deltaFor($transaction->type, $transaction->amount)
-            );
+            // Apply the new balance effect(s).
+            $this->applyEffects($transaction);
 
-            return $transaction->fresh()->load(['account:id,name', 'category:id,name']);
+            return $transaction->fresh()->load(['account:id,name', 'toAccount:id,name', 'category:id,name']);
         });
     }
 
@@ -55,13 +47,50 @@ class PersonalTransactionService implements PersonalTransactionServiceInterface
         $transaction = $this->repository->findOrFail($id);
 
         DB::transaction(function () use ($transaction): void {
-            $account = PersonalAccount::findOrFail($transaction->account_id);
+            $this->reverseEffects($transaction);
+            $transaction->delete();
+        });
+    }
+
+    /**
+     * Reverse a transaction's prior effect on account balance(s).
+     */
+    private function reverseEffects(PersonalTransaction $transaction): void
+    {
+        $account = PersonalAccount::findOrFail($transaction->account_id);
+
+        if ($transaction->type === 'transfer' && $transaction->to_account_id) {
+            $this->updateBalance->handle($account, abs((float) $transaction->amount));
+            $this->updateBalance->handle(
+                PersonalAccount::findOrFail($transaction->to_account_id),
+                -abs((float) $transaction->amount),
+            );
+        } else {
             $this->updateBalance->handle(
                 $account,
                 -1 * $this->updateBalance->deltaFor($transaction->type, $transaction->amount)
             );
+        }
+    }
 
-            $transaction->delete();
-        });
+    /**
+     * Apply a transaction's effect on account balance(s).
+     */
+    private function applyEffects(PersonalTransaction $transaction): void
+    {
+        $account = PersonalAccount::findOrFail($transaction->account_id);
+
+        if ($transaction->type === 'transfer' && $transaction->to_account_id) {
+            $this->updateBalance->handle($account, -abs((float) $transaction->amount));
+            $this->updateBalance->handle(
+                PersonalAccount::findOrFail($transaction->to_account_id),
+                abs((float) $transaction->amount),
+            );
+        } else {
+            $this->updateBalance->handle(
+                $account,
+                $this->updateBalance->deltaFor($transaction->type, $transaction->amount)
+            );
+        }
     }
 }

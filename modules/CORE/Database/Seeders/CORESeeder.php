@@ -53,6 +53,10 @@ class CORESeeder extends Seeder
             'personal-accounting.goals.view',
             'personal-accounting.goals.manage',
             'personal-accounting.reports.view',
+            'personal-accounting.loans.view',
+            'personal-accounting.loans.manage',
+            'personal-accounting.contacts.view',
+            'personal-accounting.contacts.manage',
         ]);
 
         foreach ($personalAccountingPermissions as $permission) {
@@ -121,6 +125,10 @@ class CORESeeder extends Seeder
                     'personal-accounting.goals.view',
                     'personal-accounting.goals.manage',
                     'personal-accounting.reports.view',
+                    'personal-accounting.loans.view',
+                    'personal-accounting.loans.manage',
+                    'personal-accounting.contacts.view',
+                    'personal-accounting.contacts.manage',
                 ],
             ],
         ];

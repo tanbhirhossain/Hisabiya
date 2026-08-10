@@ -58,6 +58,7 @@ class ModuleNavigation
                 'description' => 'Organisations that use the platform',
                 'items' => [
                     ['title' => 'Tenants', 'route' => 'tenants.index', 'icon' => 'Building2', 'permission' => 'tenant.view'],
+                    ['title' => 'Subscriptions', 'route' => 'subscriptions.index', 'icon' => 'CreditCard', 'permission' => 'permission.view'],
                 ],
             ],
             [

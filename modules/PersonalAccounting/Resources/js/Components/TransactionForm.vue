@@ -98,9 +98,9 @@ function categoryIconFor(icon?: string) {
                 </p>
             </div>
 
-            <!-- Account -->
+            <!-- From account -->
             <div class="space-y-1.5">
-                <label class="text-sm font-medium text-foreground">Account</label>
+                <label class="text-sm font-medium text-foreground">{{ form.type === 'transfer' ? 'From account' : 'Account' }}</label>
                 <select
                     v-model="form.account_id"
                     class="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
@@ -111,6 +111,25 @@ function categoryIconFor(icon?: string) {
                     </option>
                 </select>
                 <p v-if="form.errors.account_id" class="text-sm text-rose-500">{{ form.errors.account_id }}</p>
+            </div>
+
+            <!-- To account (transfer only) -->
+            <div v-if="form.type === 'transfer'" class="space-y-1.5">
+                <label class="text-sm font-medium text-foreground">To account</label>
+                <select
+                    v-model="form.to_account_id"
+                    class="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                >
+                    <option value="" disabled>Select destination account</option>
+                    <option
+                        v-for="acc in accounts.filter((a) => a.id !== form.account_id)"
+                        :key="acc.id"
+                        :value="acc.id"
+                    >
+                        {{ acc.name }} ({{ acc.type }})
+                    </option>
+                </select>
+                <p v-if="form.errors.to_account_id" class="text-sm text-rose-500">{{ form.errors.to_account_id }}</p>
             </div>
 
             <!-- Category -->
