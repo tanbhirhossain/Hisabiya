@@ -25,11 +25,14 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'company_name',
         'email',
         'password',
         'tenant_id',
         'is_active',
         'phone',
+        'personal_report_email_enabled',
+        'personal_report_email_day',
     ];
 
     /**
@@ -53,6 +56,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'personal_report_email_enabled' => 'boolean',
         ];
     }
 
@@ -67,5 +71,10 @@ class User extends Authenticatable
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
+    }
+
+    public function memberships(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\Modules\CORE\Models\Membership::class);
     }
 }

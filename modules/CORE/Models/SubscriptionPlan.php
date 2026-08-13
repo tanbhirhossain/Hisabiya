@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * A sellable subscription plan for a module (e.g. "Personal Accounting Pro").
- * Each plan grants a fixed set of module permissions.
+ * Each plan grants a fixed set of module permissions plus feature flags.
  */
 class SubscriptionPlan extends Model
 {
@@ -19,6 +19,7 @@ class SubscriptionPlan extends Model
     protected $casts = [
         'permissions' => 'array',
         'features' => 'array',
+        'feature_flags' => 'array',
         'price_monthly' => 'decimal:2',
         'price_yearly' => 'decimal:2',
         'is_active' => 'boolean',
@@ -32,5 +33,10 @@ class SubscriptionPlan extends Model
     public function hasPermission(string $permission): bool
     {
         return in_array($permission, $this->permissions ?? [], true);
+    }
+
+    public function hasFlag(string $flag): bool
+    {
+        return in_array($flag, $this->feature_flags ?? [], true);
     }
 }

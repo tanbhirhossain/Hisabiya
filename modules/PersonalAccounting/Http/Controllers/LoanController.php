@@ -35,6 +35,9 @@ class LoanController extends Controller
                     ...$loan->toArray(),
                     'progress_percent' => $loan->progressPercent(),
                     'is_overdue' => $loan->isOverdue(),
+                    'days_overdue' => $loan->isOverdue() && $loan->next_payment_date
+                        ? max(1, (int) $loan->next_payment_date->startOfDay()->diffInDays(now()->startOfDay()))
+                        : 0,
                     'projection' => $this->service->projection($loan),
                     'payments_count' => $loan->payments->count(),
                 ];
@@ -69,6 +72,7 @@ class LoanController extends Controller
             'contact_id' => ['nullable', 'integer', 'exists:personal_contacts,id'],
             'principal_amount' => ['required', 'numeric', 'gt:0'],
             'interest_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'penalty_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'start_date' => ['required', 'date'],
             'due_date' => ['nullable', 'date'],
             'payment_frequency' => ['required', Rule::in(['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'])],
@@ -108,6 +112,19 @@ class LoanController extends Controller
         );
 
         return redirect()->route('personal.loans.index')->with('success', 'Payment recorded.');
+    }
+
+    /**
+     * Download a PDF statement for a loan.
+     */
+    public function statement(Request $request, PersonalLoan $loan)
+    {
+        $statement = $this->service->generateStatement($loan);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('personal-accounting::loan-statement', $statement)
+            ->setPaper('a4');
+
+        return $pdf->download("loan-statement-{$loan->id}.pdf");
     }
 
     public function destroy(Request $request, PersonalLoan $loan): RedirectResponse

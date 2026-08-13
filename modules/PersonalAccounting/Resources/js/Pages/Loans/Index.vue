@@ -7,7 +7,7 @@ import ConfirmDialog from '../../Components/ConfirmDialog.vue';
 import AddLoanModal from '../../Components/AddLoanModal.vue';
 import { useForm, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
-import { Plus, HandCoins, HandHeart, Trash2, X, CalendarClock, User } from 'lucide-vue-next';
+import { Plus, HandCoins, HandHeart, Trash2, X, CalendarClock, User, FileDown } from 'lucide-vue-next';
 import { Link } from '@inertiajs/vue3';
 
 const props = defineProps<{
@@ -131,7 +131,9 @@ function formatDate(d: string | null): string {
                             <span class="rounded-full px-2 py-0.5 text-[10px] font-medium capitalize" :class="loan.direction === 'lent' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400'">
                                 {{ loan.direction }}
                             </span>
-                            <span v-if="loan.is_overdue" class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">overdue</span>
+                            <span v-if="loan.is_overdue" class="inline-flex animate-pulse items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-400" title="Loan overdue">
+                                <span class="h-1.5 w-1.5 rounded-full bg-amber-500" /> {{ loan.days_overdue ?? 'overdue' }}
+                            </span>
                             <button type="button" class="rounded-md p-1 text-muted-foreground transition hover:bg-muted hover:text-destructive" @click="confirmDelete(loan.id)"><Trash2 class="h-4 w-4" /></button>
                         </div>
                     </div>
@@ -152,9 +154,18 @@ function formatDate(d: string | null): string {
                         <p v-if="loan.interest_rate > 0">{{ loan.interest_rate }}% interest · {{ loan.payment_frequency }}</p>
                     </div>
 
-                    <button type="button" class="mt-4 w-full rounded-lg bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition hover:bg-primary/20" @click="openPay({ id: loan.id, name: loan.name, direction: loan.direction })">
-                        Record payment
-                    </button>
+                    <div class="mt-4 grid grid-cols-2 gap-2">
+                        <button type="button" class="rounded-lg bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition hover:bg-primary/20" @click="openPay({ id: loan.id, name: loan.name, direction: loan.direction })">
+                            Record payment
+                        </button>
+                        <a
+                            :href="route('personal.loans.statement', loan.id)"
+                            target="_blank"
+                            class="inline-flex items-center justify-center gap-1 rounded-lg border border-border px-3 py-2 text-sm font-semibold text-muted-foreground transition hover:bg-muted"
+                        >
+                            <FileDown class="h-4 w-4" /> Statement
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

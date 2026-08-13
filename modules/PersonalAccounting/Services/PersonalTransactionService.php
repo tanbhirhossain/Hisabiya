@@ -24,6 +24,44 @@ class PersonalTransactionService implements PersonalTransactionServiceInterface
         return $this->createTransaction->handle($data);
     }
 
+    /**
+     * Check whether a transaction with the same account + amount + date already
+     * exists within the same tenant. Returns the duplicate or null.
+     */
+    public function detectDuplicate(int $accountId, float $amount, string $date, int $tenantId): ?PersonalTransaction
+    {
+        return PersonalTransaction::query()
+            ->where('tenant_id', $tenantId)
+            ->where('account_id', $accountId)
+            ->where('amount', $amount)
+            ->whereDate('date', $date)
+            ->first();
+    }
+
+    /**
+     * Apply a field change to multiple transactions at once (ownership-scoped).
+     *
+     * @param  array<int, int>  $ids
+     */
+    public function bulkUpdate(array $ids, string $field, mixed $value, int $tenantId, int $userId): int
+    {
+        $allowed = ['status', 'category_id'];
+
+        if (! in_array($field, $allowed, true)) {
+            abort(422, 'Unsupported bulk-update field.');
+        }
+
+        if ($field === 'status' && ! in_array($value, PersonalTransaction::STATUSES, true)) {
+            abort(422, 'Invalid status.');
+        }
+
+        return PersonalTransaction::query()
+            ->whereIn('id', $ids)
+            ->where('tenant_id', $tenantId)
+            ->where('user_id', $userId)
+            ->update([$field => $value]);
+    }
+
     public function updateTransaction(int $id, array $data): PersonalTransaction
     {
         $transaction = $this->repository->findOrFail($id);

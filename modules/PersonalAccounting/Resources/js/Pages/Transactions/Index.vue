@@ -9,7 +9,8 @@ import { useTransactions } from '../../Composables/useTransactions';
 import { formatDate } from '../../Lib/format';
 import { router, usePage } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
-import { Plus, Search, Download, Trash2, FileSpreadsheet, FileDown, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import axios from 'axios';
+import { Plus, Search, Download, Trash2, FileSpreadsheet, FileDown, ChevronLeft, ChevronRight, CheckCheck } from 'lucide-vue-next';
 
 const props = defineProps<{
     transactions: any;
@@ -29,6 +30,10 @@ const filters = ref({ ...props.filters });
 const currentType = ref(filters.value.type ?? '');
 
 const canDelete = computed(() => selected.value.length > 0);
+const statusFilter = ref(filters.value.status ?? 'all');
+const bulkField = ref('');
+const bulkValue = ref('');
+const bulkLoading = ref(false);
 
 function resetFilters() {
     filters.value = {};
@@ -67,6 +72,38 @@ function confirmBulkDelete() {
         },
         onFinish: () => (deleting.value = false),
     });
+}
+
+async function applyBulkUpdate() {
+    if (!bulkField.value || selected.value.length === 0) return;
+    bulkLoading.value = true;
+    try {
+        await axios.post(route('personal.transactions.bulk-update'), {
+            ids: selected.value,
+            field: bulkField.value,
+            value: bulkValue.value,
+        });
+        bulkField.value = '';
+        bulkValue.value = '';
+        router.reload({ only: ['transactions'] });
+    } catch (e) {
+        /* ignore */
+    } finally {
+        bulkLoading.value = false;
+    }
+}
+
+async function markCleared(id: number) {
+    try {
+        await axios.post(route('personal.transactions.bulk-update'), {
+            ids: [id],
+            field: 'status',
+            value: 'cleared',
+        });
+        router.reload({ only: ['transactions'] });
+    } catch (e) {
+        /* ignore */
+    }
 }
 
 function exportCsv() {
@@ -161,6 +198,28 @@ function goto(url: string | null) {
                             <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
                         </select>
                     </div>
+                    <div>
+                        <label class="text-xs font-medium text-muted-foreground">Min ৳</label>
+                        <input v-model.number="filters.min_amount" type="number" min="0" step="0.01" placeholder="0" class="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/30" />
+                    </div>
+                    <div>
+                        <label class="text-xs font-medium text-muted-foreground">Max ৳</label>
+                        <input v-model.number="filters.max_amount" type="number" min="0" step="0.01" placeholder="∞" class="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/30" />
+                    </div>
+                </div>
+
+                <!-- Status tab pills -->
+                <div class="mt-3 flex items-center gap-2">
+                    <button
+                        v-for="s in [{id:'all',label:'All'},{id:'cleared',label:'Cleared'},{id:'pending',label:'Pending'}]"
+                        :key="s.id"
+                        type="button"
+                        class="rounded-full px-3 py-1.5 text-xs font-semibold transition"
+                        :class="statusFilter === s.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'"
+                        @click="statusFilter = s.id; filters.status = s.id === 'all' ? '' : s.id"
+                    >
+                        {{ s.label }}
+                    </button>
                 </div>
                 <div class="mt-3 flex items-center justify-between">
                     <div class="relative">
@@ -175,10 +234,33 @@ function goto(url: string | null) {
             </div>
 
             <!-- Bulk actions -->
-            <div v-if="canDelete" class="flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
+            <div v-if="canDelete" class="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
                 <p class="text-sm font-medium text-foreground">{{ selected.length }} selected</p>
+                <div class="flex flex-wrap items-center gap-2">
+                    <select v-model="bulkField" class="rounded-lg border border-input bg-background px-2 py-1.5 text-xs outline-none focus-visible:ring-2 focus-visible:ring-primary/30">
+                        <option value="">Bulk action…</option>
+                        <option value="status">Change status</option>
+                        <option value="category_id">Change category</option>
+                    </select>
+                    <select v-if="bulkField === 'status'" v-model="bulkValue" class="rounded-lg border border-input bg-background px-2 py-1.5 text-xs outline-none focus-visible:ring-2 focus-visible:ring-primary/30">
+                        <option value="cleared">Cleared</option>
+                        <option value="pending">Pending</option>
+                    </select>
+                    <select v-if="bulkField === 'category_id'" v-model="bulkValue" class="rounded-lg border border-input bg-background px-2 py-1.5 text-xs outline-none focus-visible:ring-2 focus-visible:ring-primary/30">
+                        <option value="" disabled>Select category</option>
+                        <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+                    </select>
+                    <button
+                        type="button"
+                        class="rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-50"
+                        :disabled="!bulkField || !bulkValue || bulkLoading"
+                        @click="applyBulkUpdate"
+                    >
+                        {{ bulkLoading ? 'Applying…' : 'Apply' }}
+                    </button>
+                </div>
                 <button type="button" class="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-destructive px-3 py-1.5 text-sm font-semibold text-destructive-foreground transition hover:bg-destructive/90" @click="confirmOpen = true">
-                    <Trash2 class="h-4 w-4" /> Delete selected
+                    <Trash2 class="h-4 w-4" /> Delete
                 </button>
             </div>
 
@@ -199,7 +281,13 @@ function goto(url: string | null) {
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="txn in transactions.data" :key="txn.id" class="cursor-pointer border-b border-border transition last:border-0 hover:bg-muted/30" @click="openEdit(txn)">
+                            <tr
+                                v-for="txn in transactions.data"
+                                :key="txn.id"
+                                class="cursor-pointer border-b border-border transition last:border-0 hover:bg-muted/30"
+                                :class="txn.status === 'pending' ? 'border-l-4 border-l-amber-400' : ''"
+                                @click="openEdit(txn)"
+                            >
                                 <td class="px-4 py-3" @click.stop>
                                     <input type="checkbox" class="h-4 w-4 rounded accent-primary" :checked="selected.includes(txn.id)" @change="toggleSelect(txn.id)" />
                                 </td>
@@ -208,6 +296,7 @@ function goto(url: string | null) {
                                     <div class="flex items-center gap-2">
                                         <CategoryIcon :icon="txn.category?.icon" :color="txn.category?.color" size="sm" />
                                         <span class="font-medium text-foreground">{{ txn.category?.name ?? '—' }}</span>
+                                        <span v-if="txn.status === 'pending'" class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">pending</span>
                                     </div>
                                 </td>
                                 <td class="px-4 py-3 text-muted-foreground">
@@ -217,7 +306,20 @@ function goto(url: string | null) {
                                     <template v-else>{{ txn.account?.name }}</template>
                                 </td>
                                 <td class="px-4 py-3"><TypeBadge :type="txn.type" /></td>
-                                <td class="px-4 py-3 text-right"><MoneyText :value="txn.amount" :type="txn.type" signed class="font-semibold" /></td>
+                                <td class="px-4 py-3 text-right">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button
+                                            v-if="txn.status === 'pending'"
+                                            type="button"
+                                            class="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold text-emerald-600 transition hover:bg-emerald-500/20 dark:text-emerald-400"
+                                            title="Mark cleared"
+                                            @click.stop="markCleared(txn.id)"
+                                        >
+                                            <CheckCheck class="h-3 w-3" /> Cleared
+                                        </button>
+                                        <MoneyText :value="txn.amount" :type="txn.type" signed class="font-semibold" />
+                                    </div>
+                                </td>
                             </tr>
                             <tr v-if="transactions.data.length === 0">
                                 <td colspan="6" class="px-4 py-12 text-center text-sm text-muted-foreground">No transactions match your filters.</td>

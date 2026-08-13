@@ -4,6 +4,7 @@ namespace Modules\PersonalAccounting\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\PersonalAccounting\Traits\HasTenant;
 use Modules\PersonalAccounting\Traits\HasUser;
 
@@ -23,6 +24,11 @@ class PersonalSavingsGoal extends Model
     ];
 
     public const STATUSES = ['active', 'completed', 'paused'];
+
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(PersonalAccount::class, 'account_id');
+    }
 
     public function progressPercent(): float
     {

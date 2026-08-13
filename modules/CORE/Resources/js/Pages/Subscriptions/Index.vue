@@ -10,10 +10,14 @@ const props = defineProps<{
     plans: Array<{ id: number; module: string; name: string; description: string; price_monthly: number; price_yearly: number; permissions: string[]; is_active: boolean; subscriptions_count: number }>;
     subscriptions: Array<{ id: number; status: string; module: string; ends_at: string | null; tenant: { id: number; name: string; email: string } | null; plan: { id: number; name: string; slug: string; module: string } | null }>;
     tenants: Array<{ id: number; name: string }>;
+    pendingPayments: Array<{ id: number; provider: string; amount: number; status: string; trx_id: string | null; tenant: { id: number; name: string; email: string } | null; subscription: { id: number; module: string } | null }>;
 }>();
 
 const page = usePage();
 const assignOpen = ref(false);
+const downgradeOpen = ref(false);
+const downgradeSub = ref<any>(null);
+const downgradePlanId = ref('');
 const form = useForm({ tenant_id: '', plan_id: '', module: 'personal_accounting' });
 
 function openAssign() {
@@ -28,6 +32,28 @@ function submit() {
 
 function cancel(id: number) {
     router.post(route('subscriptions.cancel', id), { preserveScroll: true });
+}
+
+function openDowngrade(sub: any) {
+    downgradeSub.value = sub;
+    downgradePlanId.value = '';
+    downgradeOpen.value = true;
+}
+
+function submitDowngrade() {
+    if (!downgradeSub.value || !downgradePlanId.value) return;
+    router.post(route('subscriptions.downgrade', downgradeSub.value.id), { plan_id: downgradePlanId.value }, {
+        preserveScroll: true,
+        onSuccess: () => (downgradeOpen.value = false),
+    });
+}
+
+function approvePayment(id: number) {
+    router.post(route('subscriptions.payments.approve', id), { preserveScroll: true });
+}
+
+function rejectPayment(id: number) {
+    router.post(route('subscriptions.payments.reject', id), { preserveScroll: true });
 }
 
 function moduleLabel(module: string): string {
@@ -85,6 +111,36 @@ function fmtPrice(v: number): string {
                 </div>
             </div>
 
+            <!-- Pending payment approvals -->
+            <div v-if="pendingPayments.length" class="rounded-xl border border-amber-300/60 bg-amber-50/40 shadow-sm dark:border-amber-500/30 dark:bg-amber-500/5">
+                <div class="flex items-center justify-between border-b border-border px-5 py-4">
+                    <div>
+                        <h2 class="text-sm font-semibold text-foreground">Pending payment approvals</h2>
+                        <p class="text-xs text-muted-foreground">Manual bKash/Bank payments awaiting verification.</p>
+                    </div>
+                    <span class="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">{{ pendingPayments.length }} pending</span>
+                </div>
+                <div class="divide-y divide-border">
+                    <div v-for="payment in pendingPayments" :key="payment.id" class="flex flex-col gap-3 px-5 py-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-foreground">{{ payment.tenant?.name }}</p>
+                            <p class="text-xs text-muted-foreground">
+                                {{ payment.provider.replace('_', ' ') }} · ৳{{ Number(payment.amount).toLocaleString('en-IN') }}
+                                <span v-if="payment.trx_id"> · TRX: {{ payment.trx_id }}</span>
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" class="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700" @click="approvePayment(payment.id)">
+                                <Check class="h-3.5 w-3.5" /> Approve
+                            </button>
+                            <button type="button" class="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-muted" @click="rejectPayment(payment.id)">
+                                <X class="h-3.5 w-3.5" /> Reject
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Active subscriptions -->
             <div class="rounded-xl border border-border bg-card shadow-sm">
                 <div class="border-b border-border px-5 py-4">
@@ -116,9 +172,14 @@ function fmtPrice(v: number): string {
                                     </span>
                                 </td>
                                 <td class="px-5 py-3 text-right">
-                                    <button v-if="sub.status === 'active'" type="button" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-rose-600 transition hover:bg-rose-500/10" @click="cancel(sub.id)">
-                                        <X class="h-3.5 w-3.5" /> Cancel
-                                    </button>
+                                    <div class="flex items-center justify-end gap-1">
+                                        <button v-if="sub.status === 'active'" type="button" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-sky-600 transition hover:bg-sky-500/10" @click="openDowngrade(sub)">
+                                            Downgrade
+                                        </button>
+                                        <button v-if="sub.status === 'active'" type="button" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-rose-600 transition hover:bg-rose-500/10" @click="cancel(sub.id)">
+                                            <X class="h-3.5 w-3.5" /> Cancel
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                             <tr v-if="subscriptions.length === 0">
@@ -167,6 +228,34 @@ function fmtPrice(v: number): string {
                             </div>
                         </div>
                     </form>
+                </div>
+            </Transition>
+        </Teleport>
+
+        <!-- Downgrade modal -->
+        <Teleport to="body">
+            <Transition enter-active-class="transition-opacity duration-200" enter-from-class="opacity-0" leave-active-class="transition-opacity duration-150" leave-to-class="opacity-0">
+                <div v-if="downgradeOpen" class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" @click="downgradeOpen = false" />
+            </Transition>
+            <Transition enter-active-class="transition scale duration-200" enter-from-class="opacity-0 scale-95" leave-active-class="transition scale duration-150" leave-to-class="opacity-0 scale-95">
+                <div v-if="downgradeOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div class="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
+                        <h2 class="text-lg font-semibold text-foreground">Downgrade subscription</h2>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            {{ downgradeSub?.tenant?.name }} · {{ downgradeSub?.plan?.name }}
+                        </p>
+                        <div class="mt-4 space-y-1.5">
+                            <label class="text-sm font-medium text-foreground">Downgrade to</label>
+                            <select v-model="downgradePlanId" class="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/30">
+                                <option value="" disabled>Select plan</option>
+                                <option v-for="plan in plans" :key="plan.id" :value="plan.id">{{ plan.name }} — {{ fmtPrice(plan.price_monthly) }}/mo</option>
+                            </select>
+                        </div>
+                        <div class="mt-6 flex justify-end gap-2">
+                            <button type="button" class="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted" @click="downgradeOpen = false">Cancel</button>
+                            <button type="button" class="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50" :disabled="!downgradePlanId" @click="submitDowngrade">Downgrade</button>
+                        </div>
+                    </div>
                 </div>
             </Transition>
         </Teleport>

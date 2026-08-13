@@ -25,9 +25,11 @@ class PersonalRecurringTransaction extends Model
         'next_run_at' => 'datetime',
         'last_run_at' => 'datetime',
         'is_active' => 'boolean',
+        'end_date' => 'date',
     ];
 
     public const FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly'];
+    public const END_TYPES = ['never', 'on_date', 'after_occurrences'];
 
     public function account(): BelongsTo
     {
@@ -42,6 +44,31 @@ class PersonalRecurringTransaction extends Model
     public function transactions(): HasMany
     {
         return $this->hasMany(PersonalTransaction::class, 'recurring_id');
+    }
+
+    public function logs(): HasMany
+    {
+        return $this->hasMany(PersonalRecurringLog::class, 'recurring_id');
+    }
+
+    /** Whether this recurring template has reached its end condition. */
+    public function hasEnded(): bool
+    {
+        if (! $this->is_active) {
+            return true;
+        }
+
+        if ($this->end_type === 'on_date' && $this->end_date && now()->startOfDay()->gte($this->end_date->startOfDay())) {
+            return true;
+        }
+
+        if ($this->end_type === 'after_occurrences'
+            && $this->max_occurrences !== null
+            && (int) $this->occurrences_count >= (int) $this->max_occurrences) {
+            return true;
+        }
+
+        return false;
     }
 
     /** Recurring templates that are active and due to run at or before now. */

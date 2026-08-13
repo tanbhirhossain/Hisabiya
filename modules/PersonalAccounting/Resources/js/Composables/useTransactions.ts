@@ -9,8 +9,13 @@ interface TransactionPayload {
     category_id?: number | string | null;
     date: string;
     note?: string;
+    status?: 'cleared' | 'pending';
     is_recurring?: boolean;
     frequency?: string;
+    end_type?: 'never' | 'on_date' | 'after_occurrences';
+    end_date?: string;
+    max_occurrences?: number | string;
+    force?: boolean;
 }
 
 // Module-level singleton state so the page and the slide-over form share it.
@@ -26,8 +31,12 @@ const form = useForm<TransactionPayload>({
     category_id: null,
     date: new Date().toISOString().slice(0, 10),
     note: '',
+    status: 'cleared',
     is_recurring: false,
     frequency: 'monthly',
+    end_type: 'never',
+    end_date: '',
+    max_occurrences: '',
 });
 
 function resetForm(initial?: Partial<TransactionPayload>) {
@@ -56,8 +65,12 @@ function openEdit(transaction: Record<string, any>) {
     form.category_id = transaction.category_id;
     form.date = transaction.date;
     form.note = transaction.note ?? '';
+    form.status = transaction.status ?? 'cleared';
     form.is_recurring = transaction.is_recurring ?? false;
     form.frequency = transaction.frequency ?? 'monthly';
+    form.end_type = transaction.end_type ?? 'never';
+    form.end_date = transaction.end_date ?? '';
+    form.max_occurrences = transaction.max_occurrences ?? '';
     slideOpen.value = true;
 }
 
@@ -67,7 +80,7 @@ function close() {
     resetForm();
 }
 
-function submit() {
+function submit(force = false) {
     if (editing.value) {
         form.put(route('personal.transactions.update', editing.value.id), {
             preserveScroll: true,
@@ -76,6 +89,7 @@ function submit() {
     } else {
         form.post(route('personal.transactions.store'), {
             preserveScroll: true,
+            force,
             onSuccess: close,
         });
     }

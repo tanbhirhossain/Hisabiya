@@ -59,6 +59,23 @@ class ModuleNavigation
                 'items' => [
                     ['title' => 'Tenants', 'route' => 'tenants.index', 'icon' => 'Building2', 'permission' => 'tenant.view'],
                     ['title' => 'Subscriptions', 'route' => 'subscriptions.index', 'icon' => 'CreditCard', 'permission' => 'permission.view'],
+                    ['title' => 'Payment Gateways', 'route' => 'settings.payment-gateways', 'icon' => 'Landmark', 'permission' => 'permission.view'],
+                    ['title' => 'Backups', 'route' => 'backup.index', 'icon' => 'Database', 'permission' => 'permission.view'],
+                ],
+            ],
+            [
+                'id' => 'personal',
+                'title' => 'Personal Accounting',
+                'icon' => 'Wallet',
+                'description' => 'Personal finance module',
+                'items' => [
+                    ['title' => 'My Money', 'route' => 'personal.dashboard', 'icon' => 'LayoutDashboard', 'permission' => 'personal-accounting.view'],
+                    ['title' => 'Transactions', 'route' => 'personal.transactions.index', 'icon' => 'ArrowLeftRight', 'permission' => 'personal-accounting.view'],
+                    ['title' => 'Accounts', 'route' => 'personal.accounts.index', 'icon' => 'Wallet', 'permission' => 'personal-accounting.view'],
+                    ['title' => 'Budgets', 'route' => 'personal.budgets.index', 'icon' => 'Target', 'permission' => 'personal-accounting.view'],
+                    ['title' => 'Savings Goals', 'route' => 'personal.goals.index', 'icon' => 'PiggyBank', 'permission' => 'personal-accounting.view'],
+                    ['title' => 'Loans', 'route' => 'personal.loans.index', 'icon' => 'HandCoins', 'permission' => 'personal-accounting.loans.view'],
+                    ['title' => 'Reports', 'route' => 'personal.reports.index', 'icon' => 'BarChart3', 'permission' => 'personal-accounting.view'],
                 ],
             ],
             [

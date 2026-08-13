@@ -15,6 +15,7 @@ const form = useForm({
     contact_id: '',
     principal_amount: '',
     interest_rate: '0',
+    penalty_rate: '0',
     start_date: new Date().toISOString().slice(0, 10),
     due_date: '',
     payment_frequency: 'monthly',
@@ -101,6 +102,12 @@ defineExpose({ openModal });
                                 <label class="text-sm font-medium text-foreground">Interest rate (%)</label>
                                 <input v-model="form.interest_rate" type="number" step="0.01" min="0" max="100" class="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/30" />
                             </div>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label class="text-sm font-medium text-foreground">Late penalty rate (%)</label>
+                            <input v-model="form.penalty_rate" type="number" step="0.01" min="0" max="100" placeholder="0" class="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/30" />
+                            <p class="text-xs text-muted-foreground">Applied when a payment is made after the scheduled date.</p>
                         </div>
 
                         <div class="grid grid-cols-2 gap-3">

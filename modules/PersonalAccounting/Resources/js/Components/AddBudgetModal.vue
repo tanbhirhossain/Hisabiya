@@ -15,6 +15,8 @@ const form = useForm({
     period: 'monthly',
     start_date: new Date().toISOString().slice(0, 10),
     end_date: '',
+    rollover_enabled: false,
+    notify_at_percent: 80,
 });
 
 function openModal() {
@@ -86,6 +88,25 @@ defineExpose({ openModal });
                                 <label class="text-sm font-medium text-foreground">Start date</label>
                                 <input v-model="form.start_date" type="date" class="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/30" />
                             </div>
+                        </div>
+
+                        <!-- Rollover -->
+                        <div class="rounded-xl border border-border p-3">
+                            <label class="flex cursor-pointer items-center gap-2 text-sm font-medium text-foreground">
+                                <input v-model="form.rollover_enabled" type="checkbox" class="h-4 w-4 rounded border-input accent-primary" />
+                                Carry over unused budget to next period
+                            </label>
+                            <p class="mt-1 text-xs text-muted-foreground">Unused amount rolls over into the next period's effective limit.</p>
+                        </div>
+
+                        <!-- Notify threshold -->
+                        <div class="space-y-1.5">
+                            <label class="flex items-center justify-between text-sm font-medium text-foreground">
+                                <span>Warning threshold</span>
+                                <span class="text-xs text-muted-foreground">{{ form.notify_at_percent }}%</span>
+                            </label>
+                            <input v-model.number="form.notify_at_percent" type="range" min="50" max="100" step="5" class="w-full accent-primary" />
+                            <p class="text-xs text-muted-foreground">You'll be warned when spending reaches this % of your limit.</p>
                         </div>
 
                         <div class="flex items-center gap-3 border-t border-border pt-4">

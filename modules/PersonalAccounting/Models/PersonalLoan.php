@@ -22,6 +22,7 @@ class PersonalLoan extends Model
     protected $casts = [
         'principal_amount' => 'decimal:2',
         'interest_rate' => 'decimal:4',
+        'penalty_rate' => 'decimal:4',
         'remaining_balance' => 'decimal:2',
         'total_paid' => 'decimal:2',
         'payment_amount' => 'decimal:2',

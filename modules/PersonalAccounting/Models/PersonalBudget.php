@@ -19,6 +19,8 @@ class PersonalBudget extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'rollover_amount' => 'decimal:2',
+        'rollover_enabled' => 'boolean',
         'start_date' => 'date',
         'end_date' => 'date',
     ];

@@ -2,6 +2,10 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\CORE\Http\Controllers\ActivityLogController;
+use Modules\CORE\Http\Controllers\Checkout\BackupController;
+use Modules\CORE\Http\Controllers\Checkout\BillingController;
+use Modules\CORE\Http\Controllers\Checkout\CheckoutController;
+use Modules\CORE\Http\Controllers\Checkout\PaymentGatewayController;
 use Modules\CORE\Http\Controllers\DashboardController;
 use Modules\CORE\Http\Controllers\PermissionController;
 use Modules\CORE\Http\Controllers\RoleController;
@@ -9,8 +13,23 @@ use Modules\CORE\Http\Controllers\SubscriptionController;
 use Modules\CORE\Http\Controllers\TenantController;
 use Modules\CORE\Http\Controllers\UserController;
 
+// Public pricing + checkout (no auth required to browse).
+// NOTE: the fixed-segment callback/manual routes MUST be registered before the
+// parameterized /checkout/{plan} route so they don't get captured by it.
+Route::middleware('web')->group(function (): void {
+    Route::get('/pricing', [CheckoutController::class, 'pricing'])->name('pricing');
+    Route::post('/checkout/process', [CheckoutController::class, 'process'])->name('checkout.process');
+    Route::get('/checkout/callback', [CheckoutController::class, 'callback'])->name('checkout.callback');
+    Route::get('/checkout/simulate/{tranId}', [CheckoutController::class, 'simulate'])->name('checkout.simulate');
+    Route::get('/checkout/manual/{provider}', [CheckoutController::class, 'manual'])->name('checkout.manual');
+    Route::post('/checkout/manual/submit', [CheckoutController::class, 'manualSubmit'])->name('checkout.manual.submit');
+    Route::get('/checkout/{plan}', [CheckoutController::class, 'checkout'])->name('checkout');
+});
+
 Route::middleware(['web', 'auth', 'verified'])->group(function (): void {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/billing', [BillingController::class, 'index'])->name('billing.index');
+    Route::get('/billing/{payment}/download', [BillingController::class, 'download'])->name('billing.download');
 
     Route::middleware('can:tenant.view')->group(function (): void {
         Route::get('admin/tenants', [TenantController::class, 'index'])->name('tenants.index');
@@ -56,5 +75,20 @@ Route::middleware(['web', 'auth', 'verified'])->group(function (): void {
         Route::get('admin/subscriptions', [SubscriptionController::class, 'index'])->name('subscriptions.index');
         Route::post('admin/subscriptions/assign', [SubscriptionController::class, 'assign'])->name('subscriptions.assign');
         Route::post('admin/subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
+        Route::post('admin/subscriptions/{subscription}/downgrade', [SubscriptionController::class, 'downgrade'])->name('subscriptions.downgrade');
+        Route::post('admin/payments/{payment}/approve', [SubscriptionController::class, 'approvePayment'])->name('subscriptions.payments.approve');
+        Route::post('admin/payments/{payment}/reject', [SubscriptionController::class, 'rejectPayment'])->name('subscriptions.payments.reject');
+
+        // Payment gateway settings.
+        Route::get('admin/settings/payment-gateways', [PaymentGatewayController::class, 'index'])->name('settings.payment-gateways');
+        Route::post('admin/settings/payment-gateways', [PaymentGatewayController::class, 'update'])->name('settings.payment-gateways.update');
+
+        // Backup center.
+        Route::get('admin/backups', [BackupController::class, 'index'])->name('backup.index');
+        Route::post('admin/backups/all', [BackupController::class, 'backupAll'])->name('backup.all');
+        Route::post('admin/backups/tenant', [BackupController::class, 'backupTenant'])->name('backup.tenant');
+        Route::post('admin/backups/restore', [BackupController::class, 'restore'])->name('backup.restore');
+        Route::post('admin/backups/restore-upload', [BackupController::class, 'restoreUpload'])->name('backup.restore-upload');
+        Route::get('admin/backups/{file}/download', [BackupController::class, 'download'])->name('backup.download');
     });
 });

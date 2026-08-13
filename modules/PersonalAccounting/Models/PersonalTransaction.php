@@ -25,6 +25,7 @@ class PersonalTransaction extends Model
     ];
 
     public const TYPES = ['income', 'expense', 'transfer'];
+    public const STATUSES = ['cleared', 'pending'];
 
     public function account(): BelongsTo
     {
@@ -66,5 +67,15 @@ class PersonalTransaction extends Model
     public function scopeOfType(Builder $query, string $type): Builder
     {
         return $query->where('type', $type);
+    }
+
+    public function scopePending(Builder $query): Builder
+    {
+        return $query->where('status', 'pending');
+    }
+
+    public function scopeCleared(Builder $query): Builder
+    {
+        return $query->where('status', 'cleared');
     }
 }

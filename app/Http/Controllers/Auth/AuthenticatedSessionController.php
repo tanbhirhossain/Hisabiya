@@ -33,7 +33,11 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        // Route the user to their module dashboard based on active subscriptions.
+        $route = app(\Modules\CORE\Services\SubscriptionActivationService::class)
+            ->routeForUser((int) $request->user()->id);
+
+        return redirect()->intended($route);
     }
 
     /**

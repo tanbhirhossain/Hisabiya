@@ -68,17 +68,21 @@ class SubscriptionService
      */
     public function syncPermissionsToUsers(Tenant $tenant, string $module, array $permissions): void
     {
-        // Remove the module's own permissions first, then re-apply what the plan grants.
-        $modulePermissions = Permission::where('name', 'like', "{$module}.%")->pluck('id');
+        // The module key uses underscores (e.g. personal_accounting) but permission
+        // names use hyphens (e.g. personal-accounting.view). Normalise the prefix.
+        $prefix = str_replace('_', '-', $module);
+        $modulePermissionIds = Permission::where('name', 'like', "{$prefix}.%")->pluck('id');
 
-        $tenant->users()->each(function (User $user) use ($modulePermissions, $permissions): void {
-            $user->syncPermissions($modulePermissions->intersect(
-                $user->permissions()->pluck('id')
-            ));
+        $tenant->users()->each(function (User $user) use ($modulePermissionIds, $permissions): void {
+            // First remove all of this module's direct permissions from the user.
+            $user->permissions()->detach($modulePermissionIds);
 
+            // Then re-apply exactly what the plan grants.
             if (! empty($permissions)) {
                 $names = Permission::whereIn('name', $permissions)->pluck('name');
-                $user->givePermissionTo($names);
+                if ($names->isNotEmpty()) {
+                    $user->givePermissionTo($names);
+                }
             }
         });
     }
@@ -98,5 +102,74 @@ class SubscriptionService
             ->where('is_active', true)
             ->orderBy('price_monthly')
             ->get();
+    }
+
+    /**
+     * Approve a manual payment (from the CORE admin queue) and activate its subscription.
+     */
+    public function approveManualPayment(\Modules\CORE\Models\Payment $payment, ?int $approverId = null): void
+    {
+        $payment->forceFill([
+            'status' => 'approved',
+            'paid_at' => $payment->paid_at ?? now(),
+        ])->save();
+
+        if ($payment->subscription) {
+            $this->activate($payment->subscription);
+
+            // Notify the tenant's owner.
+            $planName = $payment->subscription->plan?->name ?? 'subscription';
+            $owner = \Modules\CORE\Models\Membership::where('tenant_id', $payment->tenant_id)
+                ->where('module', $payment->subscription->module)
+                ->where('role', 'owner')
+                ->first();
+            $owner?->user->notify(new \Modules\CORE\Notifications\PaymentApprovedNotification(
+                $planName,
+                (float) $payment->amount,
+            ));
+        }
+
+        activity('payment')
+            ->performedOn($payment)
+            ->event('approved')
+            ->log("Manual payment for {$payment->provider} approved");
+    }
+
+    /**
+     * Reject a manual payment.
+     */
+    public function rejectManualPayment(\Modules\CORE\Models\Payment $payment): void
+    {
+        $payment->forceFill(['status' => 'failed'])->save();
+
+        activity('payment')
+            ->performedOn($payment)
+            ->event('rejected')
+            ->log('Manual payment rejected');
+    }
+
+    /**
+     * Activate a subscription directly (used by admin approvals / manual payments).
+     */
+    public function activate(TenantSubscription $subscription): TenantSubscription
+    {
+        return app(\Modules\CORE\Services\SubscriptionProvisioner::class)->activate($subscription);
+    }
+
+    /**
+     * Downgrade a subscription to another plan (removes old permissions, grants new).
+     */
+    public function downgrade(TenantSubscription $subscription, SubscriptionPlan $newPlan): TenantSubscription
+    {
+        $subscription->forceFill(['plan_id' => $newPlan->id])->save();
+
+        $this->syncPermissionsToUsers($subscription->tenant, $subscription->module, $newPlan->permissions ?? []);
+
+        activity('subscription')
+            ->performedOn($subscription)
+            ->event('downgraded')
+            ->log("Subscription downgraded to {$newPlan->name}");
+
+        return $subscription->fresh()->load('plan');
     }
 }

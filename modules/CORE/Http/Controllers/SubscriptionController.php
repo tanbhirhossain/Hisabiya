@@ -11,6 +11,7 @@ use Inertia\Response;
 use Modules\CORE\Models\SubscriptionPlan;
 use Modules\CORE\Models\Tenant;
 use Modules\CORE\Models\TenantSubscription;
+use Modules\CORE\Models\Payment;
 use Modules\CORE\Services\SubscriptionService;
 
 class SubscriptionController extends Controller
@@ -28,7 +29,34 @@ class SubscriptionController extends Controller
                 ->latest()
                 ->get(),
             'tenants' => Tenant::query()->select('id', 'name')->orderBy('name')->get(),
+            'pendingPayments' => Payment::query()
+                ->where('status', 'pending')
+                ->with(['tenant:id,name,email', 'subscription:id,module'])
+                ->latest()
+                ->get(),
         ]);
+    }
+
+    /**
+     * Approve a pending manual payment.
+     */
+    public function approvePayment(Request $request, Payment $payment): RedirectResponse
+    {
+        $this->service->approveManualPayment($payment, (int) $request->user()->id);
+
+        return redirect()->route('subscriptions.index')
+            ->with('success', 'Payment approved and subscription activated.');
+    }
+
+    /**
+     * Reject a pending manual payment.
+     */
+    public function rejectPayment(Request $request, Payment $payment): RedirectResponse
+    {
+        $this->service->rejectManualPayment($payment);
+
+        return redirect()->route('subscriptions.index')
+            ->with('success', 'Payment rejected.');
     }
 
     public function assign(Request $request): RedirectResponse
@@ -50,12 +78,29 @@ class SubscriptionController extends Controller
 
     public function cancel(Request $request, TenantSubscription $subscription): RedirectResponse
     {
-        $subscription->update(['status' => 'canceled', 'auto_renew' => false]);
+        $subscription->update(['status' => 'canceled', 'billing_status' => 'canceled', 'auto_renew' => false]);
 
         // Revoke the module permissions for the tenant's users.
         $this->service->syncPermissionsToUsers($subscription->tenant, $subscription->module, []);
 
         return redirect()->route('subscriptions.index')
             ->with('success', 'Subscription canceled.');
+    }
+
+    /**
+     * Downgrade a subscription to a lower plan.
+     */
+    public function downgrade(Request $request, TenantSubscription $subscription): RedirectResponse
+    {
+        $data = $request->validate([
+            'plan_id' => ['required', 'integer', 'exists:subscription_plans,id'],
+        ]);
+
+        $newPlan = SubscriptionPlan::findOrFail($data['plan_id']);
+
+        $this->service->downgrade($subscription, $newPlan);
+
+        return redirect()->route('subscriptions.index')
+            ->with('success', "Downgraded to {$newPlan->name}.");
     }
 }

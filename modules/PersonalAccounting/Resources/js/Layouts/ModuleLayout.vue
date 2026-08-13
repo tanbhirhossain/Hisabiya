@@ -12,10 +12,14 @@ import {
     BarChart3,
     HandCoins,
     UserRound,
+    UsersRound,
+    Repeat,
+    Database,
     CircleUser,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
+import NotificationsBell from '../Components/NotificationsBell.vue';
 
 interface Props {
     title: string;
@@ -31,17 +35,30 @@ const page = usePage();
 const navItems = [
     { title: 'Dashboard', href: '/personal/dashboard', icon: LayoutDashboard, route: 'personal.dashboard' },
     { title: 'Transactions', href: '/personal/transactions', icon: ArrowLeftRight, route: 'personal.transactions.index' },
+    { title: 'Recurring', href: '/personal/recurring', icon: Repeat, route: 'personal.recurring.index' },
     { title: 'Accounts', href: '/personal/accounts', icon: Wallet, route: 'personal.accounts.index' },
     { title: 'Budgets', href: '/personal/budgets', icon: Target, route: 'personal.budgets.index' },
     { title: 'Savings Goals', href: '/personal/goals', icon: PiggyBank, route: 'personal.goals.index' },
     { title: 'Loans', href: '/personal/loans', icon: HandCoins, route: 'personal.loans.index' },
     { title: 'Contacts', href: '/personal/contacts', icon: UserRound, route: 'personal.contacts.index' },
     { title: 'Reports', href: '/personal/reports', icon: BarChart3, route: 'personal.reports.index' },
+    { title: 'Users & Access', href: '/personal/settings/users', icon: UsersRound, route: 'personal.settings.users.index', permission: 'personal-accounting.acl' },
+    { title: 'Backup', href: '/personal/settings/backup', icon: Database, route: 'personal.settings.backup.index', permission: 'personal-accounting.backup' },
 ];
 
 const currentPath = computed(() => page.url.split('?')[0]);
 const userInitial = computed(() => (page.props.auth?.user?.name?.[0] ?? 'U').toUpperCase());
 const userName = computed(() => page.props.auth?.user?.name ?? '');
+const userPermissions = computed(() => (page.props.auth?.user?.permissions ?? []) as string[]);
+const isSuperAdmin = computed(() => (page.props.auth?.user?.roles ?? []).includes('super-admin'));
+
+// Filter nav items by the user's permissions.
+const visibleNavItems = computed(() =>
+    navItems.filter((item: any) => {
+        if (!item.permission) return true;
+        return isSuperAdmin.value || userPermissions.value.includes(item.permission);
+    }),
+);
 </script>
 
 <template>
@@ -58,7 +75,7 @@ const userName = computed(() => page.props.auth?.user?.name ?? '');
 
                 <nav class="flex-1 space-y-1 overflow-y-auto p-3">
                     <Link
-                        v-for="item in navItems"
+                        v-for="item in visibleNavItems"
                         :key="item.route"
                         :href="item.href"
                         class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition"
@@ -86,6 +103,9 @@ const userName = computed(() => page.props.auth?.user?.name ?? '');
 
             <!-- Content -->
             <main class="flex-1 overflow-x-hidden">
+                <div class="sticky top-0 z-30 flex items-center justify-end border-b border-border bg-background/80 px-4 py-2 backdrop-blur md:px-6">
+                    <NotificationsBell />
+                </div>
                 <div class="p-4 md:p-6">
                     <slot />
                 </div>

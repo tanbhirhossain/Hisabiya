@@ -25,15 +25,25 @@ class GoalController extends Controller
         $goals = PersonalSavingsGoal::query()
             ->forTenant($tenantId)
             ->where('user_id', $user->id)
+            ->with('account:id,name,type,color')
             ->orderByRaw("CASE WHEN status = 'active' THEN 0 ELSE 1 END")
             ->orderByDesc('created_at')
             ->get();
 
         return Inertia::render('PersonalAccounting::Goals/Index', [
-            'goals' => $goals->map(fn (PersonalSavingsGoal $goal) => [
-                ...$goal->toArray(),
-                'progress_percent' => $goal->progressPercent(),
-            ]),
+            'goals' => $goals->map(function (PersonalSavingsGoal $goal): array {
+                return [
+                    ...$goal->toArray(),
+                    'progress_percent' => $goal->progressPercent(),
+                    'contribution_history' => $this->service->getContributionHistory($goal),
+                ];
+            }),
+            'accounts' => \Modules\PersonalAccounting\Models\PersonalAccount::query()
+                ->forTenant($tenantId)
+                ->where('user_id', $user->id)
+                ->active()
+                ->orderBy('name')
+                ->get(['id', 'name', 'type']),
         ]);
     }
 
@@ -45,6 +55,7 @@ class GoalController extends Controller
             'deadline' => ['nullable', 'date'],
             'color' => ['nullable', 'string', 'max:20'],
             'icon' => ['nullable', 'string', 'max:50'],
+            'account_id' => ['nullable', 'integer', 'exists:personal_accounts,id'],
         ]);
 
         PersonalSavingsGoal::create([

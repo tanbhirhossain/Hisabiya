@@ -4,31 +4,45 @@ namespace Modules\PersonalAccounting\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\PersonalAccounting\Models\PersonalAccount;
 use Modules\PersonalAccounting\Models\PersonalTransaction;
+use Modules\PersonalAccounting\Services\PersonalAccountService;
 
 class AccountController extends Controller
 {
+    public function __construct(private readonly PersonalAccountService $service)
+    {
+    }
+
     public function index(Request $request): Response
     {
         $user = $request->user();
         $tenantId = (int) $user->tenant_id;
+        $includeArchived = $request->boolean('archived');
+
+        $query = PersonalAccount::query()
+            ->forTenant($tenantId)
+            ->where('user_id', $user->id);
+
+        if (! $includeArchived) {
+            $query->active();
+        }
 
         return Inertia::render('PersonalAccounting::Accounts/Index', [
-            'accounts' => PersonalAccount::query()
-                ->forTenant($tenantId)
-                ->where('user_id', $user->id)
+            'accounts' => $query
                 ->withCount('transactions')
+                ->orderBy('is_archived')
                 ->orderByDesc('is_default')
                 ->orderBy('name')
                 ->get(),
             'balance' => [
-                'total' => (float) PersonalAccount::query()->forTenant($tenantId)->where('user_id', $user->id)->sum('balance'),
-                'count' => PersonalAccount::query()->forTenant($tenantId)->where('user_id', $user->id)->count(),
+                'total' => (float) PersonalAccount::query()->forTenant($tenantId)->where('user_id', $user->id)->active()->sum('balance'),
+                'count' => PersonalAccount::query()->forTenant($tenantId)->where('user_id', $user->id)->active()->count(),
             ],
         ]);
     }
@@ -73,6 +87,33 @@ class AccountController extends Controller
                 ->with(['category:id,name,icon,color'])
                 ->latest('date')
                 ->paginate(15),
+        ]);
+    }
+
+    /**
+     * Archive an account (POST). Blocks if it's the only active account.
+     */
+    public function archive(Request $request, PersonalAccount $account): RedirectResponse
+    {
+        try {
+            $this->service->archive($account);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->back()->withErrors($e->errors());
+        }
+
+        return redirect()->back()->with('success', 'Account archived.');
+    }
+
+    /**
+     * Return the balance history for a chart (JSON).
+     */
+    public function balanceHistory(Request $request, PersonalAccount $account): JsonResponse
+    {
+        $period = $request->string('period', 'month');
+
+        return response()->json([
+            'data' => $this->service->getBalanceHistory($account, (string) $period),
+            'account' => ['id' => $account->id, 'name' => $account->name, 'balance' => (float) $account->balance],
         ]);
     }
 

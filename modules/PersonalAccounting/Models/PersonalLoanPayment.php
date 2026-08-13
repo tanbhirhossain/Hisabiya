@@ -21,6 +21,7 @@ class PersonalLoanPayment extends Model
         'amount' => 'decimal:2',
         'principal_part' => 'decimal:2',
         'interest_part' => 'decimal:2',
+        'penalty_amount' => 'decimal:2',
         'paid_at' => 'date',
     ];
 

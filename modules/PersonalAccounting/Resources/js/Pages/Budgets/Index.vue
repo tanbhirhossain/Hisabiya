@@ -10,7 +10,11 @@ import { ref } from 'vue';
 import { Plus, Trash2, Target } from 'lucide-vue-next';
 
 const props = defineProps<{
-    budgets: Array<{ budget_id: number; category: string; amount: number; actual: number; remaining: number; usage_percent: number; is_over: boolean }>;
+    budgets: Array<{
+        budget_id: number; category: string; amount: number; actual: number; remaining: number;
+        usage_percent: number; is_over: boolean; rollover_amount?: number; rollover_enabled?: boolean;
+        effective_limit?: number; forecast?: { projected_spend: number; days_remaining: number; will_exceed: boolean; overage: number } | null;
+    }>;
     categories: Array<{ id: number; name: string; icon?: string; color?: string }>;
 }>();
 
@@ -19,6 +23,14 @@ const modal = ref<InstanceType<typeof AddBudgetModal> | null>(null);
 const confirmOpen = ref(false);
 const deletingId = ref<number | null>(null);
 const deleting = ref(false);
+
+function forecastStatus(budget: any): { label: string; color: string; bg: string } {
+    const f = budget.forecast;
+    if (!f) return { label: 'No data', color: 'text-muted-foreground', bg: 'bg-muted' };
+    if (f.will_exceed) return { label: 'Will exceed', color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-500/10' };
+    if (f.projected_spend >= budget.effective_limit * 0.8) return { label: 'At risk', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10' };
+    return { label: 'On track', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10' };
+}
 
 function confirmDelete(id: number) {
     deletingId.value = id;
@@ -59,7 +71,12 @@ function doDelete() {
                         <div>
                             <h3 class="text-sm font-semibold text-foreground">{{ budget.category }}</h3>
                             <p class="mt-0.5 text-xs text-muted-foreground">
-                                <MoneyText :value="budget.actual" compact /> spent of <MoneyText :value="budget.amount" compact />
+                                <MoneyText :value="budget.actual" compact /> spent of
+                                <MoneyText :value="budget.effective_limit ?? budget.amount" compact />
+                            </p>
+                            <!-- Effective limit tooltip when rollover > 0 -->
+                            <p v-if="(budget.rollover_amount ?? 0) > 0" class="mt-0.5 inline-flex items-center gap-1 rounded-md bg-indigo-500/10 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600 dark:text-indigo-400" title="Includes rollover from the previous period">
+                                limit {{ budget.amount }} + {{ budget.rollover_amount }} rollover
                             </p>
                         </div>
                         <button type="button" class="rounded-md p-1.5 text-muted-foreground transition hover:bg-muted hover:text-destructive" @click="confirmDelete(budget.budget_id)">
@@ -75,6 +92,19 @@ function doDelete() {
                                 <MoneyText :value="budget.remaining" compact /> left
                             </span>
                         </div>
+                    </div>
+
+                    <!-- Forecast chip -->
+                    <div class="mt-3 flex items-center justify-between">
+                        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" :class="forecastStatus(budget).bg + ' ' + forecastStatus(budget).color">
+                            {{ forecastStatus(budget).label }}
+                        </span>
+                        <span v-if="budget.forecast && budget.forecast.will_exceed" class="text-xs text-rose-600 dark:text-rose-400">
+                            ~<MoneyText :value="budget.forecast.overage" compact /> over
+                        </span>
+                        <span v-else class="text-xs text-muted-foreground">
+                            {{ budget.forecast?.days_remaining ?? '—' }} days left
+                        </span>
                     </div>
                 </div>
             </div>

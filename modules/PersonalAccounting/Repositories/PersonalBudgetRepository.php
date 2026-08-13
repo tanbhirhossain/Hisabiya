@@ -44,15 +44,21 @@ class PersonalBudgetRepository extends BaseRepository implements PersonalBudgetR
         return $budgets->map(function (PersonalBudget $budget) use ($actuals): array {
             $actual = (float) ($actuals[$budget->category_id] ?? 0);
             $amount = (float) $budget->amount;
+            $rollover = (float) $budget->rollover_amount;
+            $effectiveLimit = $amount + $rollover;
 
             return [
                 'budget_id' => $budget->id,
                 'category' => $budget->category?->name ?? 'Uncategorised',
                 'amount' => $amount,
+                'rollover_amount' => $rollover,
+                'rollover_enabled' => (bool) $budget->rollover_enabled,
+                'effective_limit' => $effectiveLimit,
+                'notify_at_percent' => $budget->notify_at_percent ?? 80,
                 'actual' => $actual,
-                'remaining' => round($amount - $actual, 2),
-                'usage_percent' => $amount > 0 ? round(($actual / $amount) * 100, 2) : 0.0,
-                'is_over' => $actual > $amount,
+                'remaining' => round($effectiveLimit - $actual, 2),
+                'usage_percent' => $effectiveLimit > 0 ? round(($actual / $effectiveLimit) * 100, 2) : 0.0,
+                'is_over' => $actual > $effectiveLimit,
             ];
         });
     }

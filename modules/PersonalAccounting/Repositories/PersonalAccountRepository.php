@@ -46,7 +46,7 @@ class PersonalAccountRepository extends BaseRepository implements PersonalAccoun
             ->withoutGlobalScope(\Modules\PersonalAccounting\Traits\Scopes\TenantScope::class)
             ->where('tenant_id', auth()->user()?->tenant_id)
             ->where('user_id', $userId)
-            ->with(['account:id,name', 'category:id,name'])
+            ->with(['account:id,name', 'toAccount:id,name', 'category:id,name'])
             ->latest('date')
             ->limit($limit)
             ->get();
