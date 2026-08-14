@@ -34,4 +34,12 @@ interface PaymentProvider
      * Whether this provider uses manual (offline) confirmation.
      */
     public function isManual(): bool;
+
+    /**
+     * Refund a paid payment with the provider. Returns true on success (or when
+     * the provider has no online refund and the refund is recorded offline).
+     *
+     * @param  string|null  $reason  optional refund reason
+     */
+    public function refund(Payment $payment, ?string $reason = null): bool;
 }

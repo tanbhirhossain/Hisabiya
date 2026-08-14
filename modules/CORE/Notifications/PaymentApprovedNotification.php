@@ -3,6 +3,7 @@
 namespace Modules\CORE\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Queue\SerializesModels;
@@ -11,7 +12,7 @@ use Illuminate\Queue\SerializesModels;
  * Notifies a user when their manual payment has been approved and the
  * subscription activated.
  */
-class PaymentApprovedNotification extends Notification
+class PaymentApprovedNotification extends Notification implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

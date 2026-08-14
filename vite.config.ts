@@ -5,6 +5,12 @@ import path from 'path';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+    server: {
+        // Force IPv4 loopback so Vite's dev-server origin is a valid CSP
+        // source (CSP does not accept bracketed IPv6 like [::1]).
+        host: '127.0.0.1',
+        port: 5173,
+    },
     plugins: [
         laravel({
             input: ['resources/js/app.ts'],

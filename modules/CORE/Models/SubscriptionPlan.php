@@ -37,6 +37,6 @@ class SubscriptionPlan extends Model
 
     public function hasFlag(string $flag): bool
     {
-        return in_array($flag, $this->feature_flags ?? [], true);
+        return isset($this->feature_flags[$flag]) && $this->feature_flags[$flag] === true;
     }
 }

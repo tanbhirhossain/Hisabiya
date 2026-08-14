@@ -49,6 +49,7 @@ class ModuleNavigation
                 'description' => 'Command center and platform activity',
                 'items' => [
                     ['title' => 'Dashboard', 'route' => 'dashboard', 'icon' => 'LayoutDashboard', 'exact' => true],
+                    ['title' => 'My Modules', 'route' => 'modules.index', 'icon' => 'LayoutGrid'],
                 ],
             ],
             [
@@ -60,6 +61,7 @@ class ModuleNavigation
                     ['title' => 'Tenants', 'route' => 'tenants.index', 'icon' => 'Building2', 'permission' => 'tenant.view'],
                     ['title' => 'Subscriptions', 'route' => 'subscriptions.index', 'icon' => 'CreditCard', 'permission' => 'permission.view'],
                     ['title' => 'Payment Gateways', 'route' => 'settings.payment-gateways', 'icon' => 'Landmark', 'permission' => 'permission.view'],
+                    ['title' => 'Mail Settings', 'route' => 'settings.mail', 'icon' => 'Mail', 'permission' => 'permission.view'],
                     ['title' => 'Backups', 'route' => 'backup.index', 'icon' => 'Database', 'permission' => 'permission.view'],
                 ],
             ],
@@ -106,6 +108,7 @@ class ModuleNavigation
                 'items' => [
                     ['title' => 'Profile', 'route' => 'profile.edit', 'icon' => 'UserRoundCog'],
                     ['title' => 'Password', 'route' => 'password.edit', 'icon' => 'KeyRound'],
+                    ['title' => 'Two-factor', 'route' => 'two-factor.settings', 'icon' => 'ShieldCheck'],
                     ['title' => 'Appearance', 'route' => 'appearance', 'icon' => 'Palette'],
                 ],
             ],

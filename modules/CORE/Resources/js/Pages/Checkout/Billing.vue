@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '../../Layouts/AppLayout.vue';
 import PageHeader from '../../Components/PageHeader.vue';
-import { FileDown, CheckCircle2, Clock, XCircle } from 'lucide-vue-next';
+import { FileDown, CheckCircle2, Clock, XCircle, CreditCard } from 'lucide-vue-next';
+
+function payRenewal(id: number) {
+    router.post(route('billing.pay', id));
+}
 
 defineProps<{
     payments: any;
@@ -58,14 +62,24 @@ function fmtMoney(v: number): string {
                                 </td>
                                 <td class="px-5 py-3 text-right font-semibold text-foreground">{{ fmtMoney(p.amount) }}</td>
                                 <td class="px-5 py-3 text-right">
-                                    <Link
-                                        v-if="p.status === 'paid' || p.status === 'approved'"
-                                        :href="route('billing.download', p.id)"
-                                        class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                                    >
-                                        <FileDown class="h-3.5 w-3.5" /> PDF
-                                    </Link>
-                                    <span v-else class="text-xs text-muted-foreground">—</span>
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button
+                                            v-if="p.status === 'pending'"
+                                            type="button"
+                                            class="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground transition hover:opacity-90"
+                                            @click="payRenewal(p.id)"
+                                        >
+                                            <CreditCard class="h-3.5 w-3.5" /> Pay now
+                                        </button>
+                                        <Link
+                                            v-if="p.status === 'paid' || p.status === 'approved'"
+                                            :href="route('billing.download', p.id)"
+                                            class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                                        >
+                                            <FileDown class="h-3.5 w-3.5" /> PDF
+                                        </Link>
+                                        <span v-else-if="p.status !== 'pending'" class="text-xs text-muted-foreground">—</span>
+                                    </div>
                                 </td>
                             </tr>
                             <tr v-if="payments.data.length === 0">

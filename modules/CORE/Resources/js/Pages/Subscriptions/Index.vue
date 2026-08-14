@@ -4,13 +4,15 @@ import AppLayout from '../../Layouts/AppLayout.vue';
 import PageHeader from '../../Components/PageHeader.vue';
 import { usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
-import { CreditCard, Check, X, Crown, Sparkles } from 'lucide-vue-next';
+import { Link } from '@inertiajs/vue3';
+import { CreditCard, Check, X, Crown, Sparkles, Plus, Pencil, Trash2 } from 'lucide-vue-next';
 
 const props = defineProps<{
-    plans: Array<{ id: number; module: string; name: string; description: string; price_monthly: number; price_yearly: number; permissions: string[]; is_active: boolean; subscriptions_count: number }>;
+    plans: Array<{ id: number; module: string; name: string; slug: string; description: string; price_monthly: number; price_yearly: number; permissions: string[]; features: string[]; is_active: boolean; subscriptions_count: number }>;
     subscriptions: Array<{ id: number; status: string; module: string; ends_at: string | null; tenant: { id: number; name: string; email: string } | null; plan: { id: number; name: string; slug: string; module: string } | null }>;
     tenants: Array<{ id: number; name: string }>;
     pendingPayments: Array<{ id: number; provider: string; amount: number; status: string; trx_id: string | null; tenant: { id: number; name: string; email: string } | null; subscription: { id: number; module: string } | null }>;
+    paidPayments: Array<{ id: number; provider: string; amount: number; status: string; trx_id: string | null; created_at: string; tenant: { id: number; name: string; email: string } | null; subscription: { id: number; module: string } | null }>;
 }>();
 
 const page = usePage();
@@ -48,12 +50,23 @@ function submitDowngrade() {
     });
 }
 
+function deletePlan(id: number) {
+    if (!window.confirm('Delete this plan? This cannot be undone.')) return;
+    router.delete(route('subscriptions.plans.destroy', id), { preserveScroll: true });
+}
+
 function approvePayment(id: number) {
     router.post(route('subscriptions.payments.approve', id), { preserveScroll: true });
 }
 
 function rejectPayment(id: number) {
     router.post(route('subscriptions.payments.reject', id), { preserveScroll: true });
+}
+
+function refundPayment(id: number) {
+    const reason = window.prompt('Refund reason (optional):') ?? '';
+    if (reason === null) return; // cancelled
+    router.post(route('subscriptions.payments.refund', id), { reason }, { preserveScroll: true });
 }
 
 function moduleLabel(module: string): string {
@@ -72,6 +85,9 @@ function fmtPrice(v: number): string {
         <div class="flex flex-col gap-6 p-4 md:p-6">
             <PageHeader title="Subscriptions" description="Manage module plans and which tenants are subscribed to them.">
                 <template #actions>
+                    <Link :href="route('subscriptions.plans.create')" class="inline-flex items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-sm font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground">
+                        <Plus class="h-4 w-4" /> New plan
+                    </Link>
                     <button
                         type="button"
                         class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90"
@@ -108,6 +124,20 @@ function fmtPrice(v: number): string {
                         </p>
                     </div>
                     <p class="mt-3 text-xs font-medium text-muted-foreground">{{ plan.permissions?.length }} permissions granted</p>
+                    <div class="mt-4 flex items-center gap-2 border-t border-border pt-4">
+                        <Link :href="route('subscriptions.plans.edit', plan.id)" class="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground">
+                            <Pencil class="h-3.5 w-3.5" /> Edit plan
+                        </Link>
+                        <button
+                            v-if="plan.subscriptions_count === 0"
+                            type="button"
+                            class="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-rose-500 transition hover:bg-rose-500/10"
+                            @click="deletePlan(plan.id)"
+                        >
+                            <Trash2 class="h-3.5 w-3.5" /> Delete
+                        </button>
+                        <span v-else class="text-xs text-muted-foreground">In use</span>
+                    </div>
                 </div>
             </div>
 
@@ -137,6 +167,38 @@ function fmtPrice(v: number): string {
                                 <X class="h-3.5 w-3.5" /> Reject
                             </button>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Paid / refundable payments -->
+            <div v-if="paidPayments.length" class="rounded-xl border border-border bg-card shadow-sm">
+                <div class="flex items-center justify-between border-b border-border px-5 py-4">
+                    <div>
+                        <h2 class="text-sm font-semibold text-foreground">Recent payments</h2>
+                        <p class="text-xs text-muted-foreground">Paid transactions. Refund to revoke access and return funds.</p>
+                    </div>
+                </div>
+                <div class="divide-y divide-border">
+                    <div v-for="payment in paidPayments" :key="payment.id" class="flex flex-col gap-3 px-5 py-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-foreground">{{ payment.tenant?.name }}</p>
+                            <p class="text-xs text-muted-foreground">
+                                {{ payment.provider.replace('_', ' ') }} · ৳{{ Number(payment.amount).toLocaleString('en-IN') }}
+                                <span v-if="payment.trx_id"> · TRX: {{ payment.trx_id }}</span>
+                            </p>
+                            <p class="text-xs capitalize" :class="payment.status === 'refunded' ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'">
+                                {{ payment.status }}
+                            </p>
+                        </div>
+                        <button
+                            v-if="payment.status !== 'refunded'"
+                            type="button"
+                            class="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-500/10"
+                            @click="refundPayment(payment.id)"
+                        >
+                            <X class="h-3.5 w-3.5" /> Refund
+                        </button>
                     </div>
                 </div>
             </div>

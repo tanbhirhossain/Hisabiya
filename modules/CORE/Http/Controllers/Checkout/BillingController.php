@@ -39,4 +39,22 @@ class BillingController extends Controller
 
         return $this->billing->invoicePdf($payment)->download("invoice-{$payment->id}.pdf");
     }
+
+    /**
+     * Pay a pending payment (e.g. a renewal invoice) for the user's own tenant.
+     * Re-initiates the provider checkout for the related subscription.
+     */
+    public function pay(Request $request, Payment $payment): RedirectResponse
+    {
+        abort_unless($payment->tenant_id === (int) $request->user()->tenant_id, 403);
+        abort_unless($payment->status === 'pending', 422, 'This payment is not pending.');
+
+        $subscription = $payment->subscription;
+        abort_unless($subscription, 422, 'This payment has no subscription.');
+
+        $provider = $payment->provider ?: 'sslcommerz';
+        $init = app(\Modules\CORE\Services\PaymentService::class)->initiate($subscription, $provider);
+
+        return redirect($init['redirect_url']);
+    }
 }

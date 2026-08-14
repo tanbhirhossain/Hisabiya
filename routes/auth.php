@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
@@ -14,18 +15,20 @@ Route::middleware('guest')->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])
         ->name('register');
 
-    Route::post('register', [RegisteredUserController::class, 'store']);
+    Route::post('register', [RegisteredUserController::class, 'store'])
+        ->middleware('throttle:auth');
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
 
-    Route::post('login', [AuthenticatedSessionController::class, 'store']);
+    Route::post('login', [AuthenticatedSessionController::class, 'store'])
+        ->middleware('throttle:auth');
 
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
 
     Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
-        ->name('password.email');
+        ->name('password.email')->middleware('throttle:auth');
 
     Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
         ->name('password.reset');
@@ -34,7 +37,25 @@ Route::middleware('guest')->group(function () {
         ->name('password.store');
 });
 
+// Two-factor login challenge (session holds a pending login, no auth yet).
+Route::middleware('guest')->group(function () {
+    Route::get('two-factor/challenge', [TwoFactorController::class, 'challenge'])
+        ->name('two-factor.challenge');
+
+    Route::post('two-factor/challenge', [TwoFactorController::class, 'confirmChallenge'])
+        ->name('two-factor.challenge.confirm')->middleware('throttle:two-factor');
+});
+
 Route::middleware('auth')->group(function () {
+    Route::get('two-factor/settings', [TwoFactorController::class, 'show'])
+        ->name('two-factor.settings');
+    Route::post('two-factor/setup', [TwoFactorController::class, 'setup'])
+        ->name('two-factor.setup');
+    Route::post('two-factor/confirm', [TwoFactorController::class, 'confirm'])
+        ->name('two-factor.confirm');
+    Route::post('two-factor/disable', [TwoFactorController::class, 'disable'])
+        ->name('two-factor.disable');
+
     Route::get('verify-email', EmailVerificationPromptController::class)
         ->name('verification.notice');
 

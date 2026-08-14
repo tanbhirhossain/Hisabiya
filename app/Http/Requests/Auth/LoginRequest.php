@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -39,9 +40,22 @@ class LoginRequest extends FormRequest
      */
     public function authenticate(): void
     {
+        $user = $this->validateCredentials();
+
+        $this->loginUser($user);
+    }
+
+    /**
+     * Validate the credentials WITHOUT logging in, returning the matching user.
+     * Used to branch on two-factor authentication before establishing a session.
+     *
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    public function validateCredentials(): User
+    {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        if (! Auth::validate($this->only('email', 'password'))) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
@@ -49,7 +63,21 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        $user = User::where('email', $this->string('email'))->firstOrFail();
+
         RateLimiter::clear($this->throttleKey());
+
+        return $user;
+    }
+
+    /**
+     * Establish an authenticated session for a verified user.
+     */
+    public function loginUser(User $user): void
+    {
+        Auth::login($user, $this->boolean('remember'));
+
+        $this->session()->regenerate();
     }
 
     /**

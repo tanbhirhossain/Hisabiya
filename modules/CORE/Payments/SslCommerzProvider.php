@@ -102,4 +102,77 @@ class SslCommerzProvider implements PaymentProvider
 
         return strtolower($status) === 'valid' ? 'paid' : 'failed';
     }
+
+    /**
+     * Resolve an SSLCommerz payment status (from IPN/callback/query) into our
+     * canonical payment state: 'paid', 'failed' or 'cancelled'.
+     *
+     * SSLCommerz success states are VALID / VALIDATED; anything else is a
+     * failure or cancellation.
+     */
+    public function resolveStatus(string $status): string
+    {
+        return match (strtoupper($status)) {
+            'VALID', 'VALIDATED' => 'paid',
+            'CANCELLED' => 'cancelled',
+            default => 'failed',
+        };
+    }
+
+    /**
+     * Refund a paid payment via the SSLCommerz refund API. In dev mode (no
+     * store id) the refund is simulated and returns true so the flow is
+     * testable locally.
+     */
+    public function refund(Payment $payment, ?string $reason = null): bool
+    {
+        // Dev / no credentials: simulate a successful refund.
+        if ($this->storeId === '') {
+            return true;
+        }
+
+        $refundRef = 'REFUND'.Str::upper(Str::random(12));
+        $endpoint = $this->sandbox
+            ? 'https://sandbox.sslcommerz.com/refund/api.php'
+            : 'https://secure.sslcommerz.com/refund/api.php';
+
+        $response = Http::asForm()->post($endpoint, [
+            'refund_ref' => $refundRef,
+            'amount' => (string) $payment->amount,
+            'tran_id' => $payment->provider_ref,
+            'ref_id' => (string) $payment->id,
+            'store_id' => $this->storeId,
+            'store_passwd' => $this->storePass,
+            'format' => 'json',
+        ])->json();
+
+        return strtolower((string) ($response['status'] ?? '')) === 'success';
+    }
+
+    /**
+     * Verify the SSLCommerz IPN/callback signature. The gateway sends a
+     * `verify_key` (comma-separated list of field names that were hashed) and a
+     * `verify_sign` (an MD5 HMAC of the concatenated values of those fields,
+     * keyed with the store password). This prevents forged payment callbacks.
+     */
+    public function validateSignature(array $payload, ?string $storePass = null): bool
+    {
+        $storePass ??= $this->storePass;
+        $verifySign = $payload['verify_sign'] ?? null;
+        $verifyKey = $payload['verify_key'] ?? null;
+
+        if (! is_string($verifySign) || ! is_string($verifyKey) || $verifyKey === '') {
+            // No signature provided — only acceptable in dev mode.
+            return $this->storeId === '';
+        }
+
+        $concatenated = '';
+        foreach (explode(',', $verifyKey) as $field) {
+            $concatenated .= $payload[$field] ?? '';
+        }
+
+        $expected = hash_hmac('md5', $concatenated, $storePass, false);
+
+        return hash_equals($expected, $verifySign);
+    }
 }

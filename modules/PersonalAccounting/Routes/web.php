@@ -17,6 +17,7 @@ use Modules\PersonalAccounting\Http\Controllers\TransactionImportController;
 
 Route::middleware(['web', 'auth', 'verified', 'can:personal-accounting.view'])->prefix('personal')->name('personal.')->group(function (): void {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::post('/dashboard/load-sample-data', [DashboardController::class, 'loadSampleData'])->name('dashboard.load-sample-data');
 
     Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions.index');
     Route::post('/transactions', [TransactionController::class, 'store'])->name('transactions.store');

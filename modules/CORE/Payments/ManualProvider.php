@@ -48,6 +48,16 @@ class ManualProvider implements PaymentProvider
         return $this->method;
     }
 
+    /**
+     * Manual payments have no online gateway to refund against; a refund is
+     * recorded offline (money returned by bank/bKash manually). Always returns
+     * true so the caller marks the payment refunded.
+     */
+    public function refund(Payment $payment, ?string $reason = null): bool
+    {
+        return true;
+    }
+
     public function accountDetails(): array
     {
         $settings = app(\Modules\CORE\Services\PaymentGatewaySettingsService::class)->all();

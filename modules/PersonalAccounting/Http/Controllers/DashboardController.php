@@ -71,7 +71,26 @@ class DashboardController extends Controller
             'topBudgets' => collect($budgets)->sortByDesc('usage_percent')->take(3)->values(),
             'categories' => $this->categoryOptions($tenantId),
             'accounts' => $balance['accounts'],
+            'onboarding' => [
+                'sample_data_loaded' => app(\Modules\PersonalAccounting\Services\PersonalAccountingSampleDataService::class)->loaded($tenantId),
+                'has_transactions' => \Modules\PersonalAccounting\Models\PersonalTransaction::where('tenant_id', $tenantId)->exists(),
+            ],
         ]);
+    }
+
+    /**
+     * Load realistic sample data for the tenant (used by the onboarding banner).
+     */
+    public function loadSampleData(Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $user = $request->user();
+        $tenantId = (int) $user->tenant_id;
+
+        $count = app(\Modules\PersonalAccounting\Services\PersonalAccountingSampleDataService::class)
+            ->load((int) $user->id, $tenantId);
+
+        return redirect()->route('personal.dashboard')
+            ->with('success', $count > 0 ? "Sample data loaded ({$count} records). Explore the module!" : 'Sample data already loaded.');
     }
 
     /**

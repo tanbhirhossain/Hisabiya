@@ -29,13 +29,27 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
-        $request->authenticate();
+        // Validate credentials without logging in so we can branch on 2FA.
+        $user = $request->validateCredentials();
 
-        $request->session()->regenerate();
+        $twoFactor = app(\App\Services\TwoFactorAuthService::class);
+
+        // If the user has 2FA enabled, don't establish a session yet — send them
+        // to the challenge step instead.
+        if ($twoFactor->enabled($user)) {
+            $request->session()->put('two_factor_login', [
+                'id' => $user->id,
+                'remember' => $request->boolean('remember'),
+            ]);
+
+            return redirect()->route('two-factor.challenge');
+        }
+
+        $request->loginUser($user);
 
         // Route the user to their module dashboard based on active subscriptions.
         $route = app(\Modules\CORE\Services\SubscriptionActivationService::class)
-            ->routeForUser((int) $request->user()->id);
+            ->routeForUser((int) $user->id);
 
         return redirect()->intended($route);
     }

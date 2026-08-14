@@ -92,4 +92,16 @@ class SubscriptionProvisioner
             ->values()
             ->all();
     }
+
+    /**
+     * Whether a tenant has any subscription record (of any billing state) for
+     * a given module. Used by the browse screen to mark a module as "already
+     * subscribed / pending".
+     */
+    public function tenantHasModule(int $tenantId, string $module): bool
+    {
+        return TenantSubscription::where('tenant_id', $tenantId)
+            ->where('module', $module)
+            ->exists();
+    }
 }

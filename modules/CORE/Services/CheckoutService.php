@@ -66,6 +66,25 @@ class CheckoutService
     }
 
     /**
+     * Add a new module subscription for an already-authenticated user, reusing
+     * their existing account + tenant and creating only the new module's Owner
+     * membership. Used when a subscriber purchases an additional module.
+     */
+    public function attachModule(User $user, SubscriptionPlan $plan): array
+    {
+        return DB::transaction(function () use ($user, $plan): array {
+            $tenant = Tenant::findOrFail($user->tenant_id);
+
+            $membership = Membership::updateOrCreate(
+                ['user_id' => $user->id, 'tenant_id' => $tenant->id, 'module' => $plan->module],
+                ['role' => 'owner', 'is_active' => true],
+            );
+
+            return ['user' => $user, 'tenant' => $tenant, 'membership' => $membership];
+        });
+    }
+
+    /**
      * Idempotently create a subscription in `pending` billing state.
      */
     public function createPendingSubscription(Tenant $tenant, SubscriptionPlan $plan, string $provider, ?string $checkoutSessionId = null): TenantSubscription

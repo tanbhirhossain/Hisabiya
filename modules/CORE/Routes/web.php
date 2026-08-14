@@ -18,7 +18,11 @@ use Modules\CORE\Http\Controllers\UserController;
 // parameterized /checkout/{plan} route so they don't get captured by it.
 Route::middleware('web')->group(function (): void {
     Route::get('/pricing', [CheckoutController::class, 'pricing'])->name('pricing');
-    Route::post('/checkout/process', [CheckoutController::class, 'process'])->name('checkout.process');
+    Route::get('/terms', [\Modules\CORE\Http\Controllers\LegalController::class, 'terms'])->name('legal.terms');
+    Route::get('/privacy', [\Modules\CORE\Http\Controllers\LegalController::class, 'privacy'])->name('legal.privacy');
+    Route::get('/refund', [\Modules\CORE\Http\Controllers\LegalController::class, 'refund'])->name('legal.refund');
+    Route::post('/checkout/process', [CheckoutController::class, 'process'])->name('checkout.process')->middleware('throttle:checkout');
+    Route::post('/checkout/ipn', [CheckoutController::class, 'ipn'])->name('checkout.ipn');
     Route::get('/checkout/callback', [CheckoutController::class, 'callback'])->name('checkout.callback');
     Route::get('/checkout/simulate/{tranId}', [CheckoutController::class, 'simulate'])->name('checkout.simulate');
     Route::get('/checkout/manual/{provider}', [CheckoutController::class, 'manual'])->name('checkout.manual');
@@ -28,8 +32,11 @@ Route::middleware('web')->group(function (): void {
 
 Route::middleware(['web', 'auth', 'verified'])->group(function (): void {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/modules', [DashboardController::class, 'modules'])->name('modules.index');
     Route::get('/billing', [BillingController::class, 'index'])->name('billing.index');
+    Route::get('/billing/browse', [CheckoutController::class, 'browse'])->name('billing.browse');
     Route::get('/billing/{payment}/download', [BillingController::class, 'download'])->name('billing.download');
+    Route::post('/billing/{payment}/pay', [BillingController::class, 'pay'])->name('billing.pay');
 
     Route::middleware('can:tenant.view')->group(function (): void {
         Route::get('admin/tenants', [TenantController::class, 'index'])->name('tenants.index');
@@ -73,15 +80,26 @@ Route::middleware(['web', 'auth', 'verified'])->group(function (): void {
 
     Route::middleware('can:permission.view')->group(function (): void {
         Route::get('admin/subscriptions', [SubscriptionController::class, 'index'])->name('subscriptions.index');
+        Route::get('admin/subscriptions/plans/create', [SubscriptionController::class, 'createPlan'])->name('subscriptions.plans.create');
+        Route::post('admin/subscriptions/plans', [SubscriptionController::class, 'storePlan'])->name('subscriptions.plans.store');
+        Route::get('admin/subscriptions/plans/{plan}/edit', [SubscriptionController::class, 'editPlan'])->name('subscriptions.plans.edit');
+        Route::put('admin/subscriptions/plans/{plan}', [SubscriptionController::class, 'updatePlan'])->name('subscriptions.plans.update');
+        Route::delete('admin/subscriptions/plans/{plan}', [SubscriptionController::class, 'destroyPlan'])->name('subscriptions.plans.destroy');
         Route::post('admin/subscriptions/assign', [SubscriptionController::class, 'assign'])->name('subscriptions.assign');
         Route::post('admin/subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
         Route::post('admin/subscriptions/{subscription}/downgrade', [SubscriptionController::class, 'downgrade'])->name('subscriptions.downgrade');
         Route::post('admin/payments/{payment}/approve', [SubscriptionController::class, 'approvePayment'])->name('subscriptions.payments.approve');
         Route::post('admin/payments/{payment}/reject', [SubscriptionController::class, 'rejectPayment'])->name('subscriptions.payments.reject');
+        Route::post('admin/payments/{payment}/refund', [SubscriptionController::class, 'refundPayment'])->name('subscriptions.payments.refund');
 
         // Payment gateway settings.
         Route::get('admin/settings/payment-gateways', [PaymentGatewayController::class, 'index'])->name('settings.payment-gateways');
         Route::post('admin/settings/payment-gateways', [PaymentGatewayController::class, 'update'])->name('settings.payment-gateways.update');
+
+        // Mail (SMTP) settings.
+        Route::get('admin/settings/mail', [\Modules\CORE\Http\Controllers\Checkout\MailSettingsController::class, 'index'])->name('settings.mail');
+        Route::post('admin/settings/mail', [\Modules\CORE\Http\Controllers\Checkout\MailSettingsController::class, 'update'])->name('settings.mail.update');
+        Route::post('admin/settings/mail/test', [\Modules\CORE\Http\Controllers\Checkout\MailSettingsController::class, 'test'])->name('settings.mail.test');
 
         // Backup center.
         Route::get('admin/backups', [BackupController::class, 'index'])->name('backup.index');

@@ -2,19 +2,33 @@
 import { Head, Link } from '@inertiajs/vue3';
 import PublicLayout from '../../Layouts/PublicLayout.vue';
 import { Check, Sparkles, Crown, ArrowRight } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 const props = defineProps<{
     module: string;
-    plans: Array<{
-        id: number; name: string; description: string; price_monthly: number; price_yearly: number;
-        features: string[]; permissions: string[];
+    modules: Array<{
+        key: string;
+        label: string;
+        tagline: string;
+        description: string;
+        icon: string;
+        color: string;
+        plans: Array<{
+            id: number; name: string; description: string; price_monthly: number; price_yearly: number;
+            features: string[]; permissions: string[];
+        }>;
     }>;
 }>();
 
-const moduleLabel = computed(() => props.module.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase()));
+// Which module is shown (tab).
+const activeModule = ref(props.module);
 
-const featured = computed(() => props.plans.find((p) => p.name.toLowerCase().includes('pro'))?.id ?? props.plans[0]?.id);
+const currentModule = computed(() => props.modules.find((m) => m.key === activeModule.value) ?? props.modules[0]);
+
+const plans = computed(() => currentModule.value?.plans ?? []);
+const moduleLabel = computed(() => currentModule.value?.label ?? '');
+
+const featured = computed(() => plans.value.find((p) => p.name.toLowerCase().includes('pro'))?.id ?? plans.value[1]?.id ?? plans.value[0]?.id);
 
 function price(v: number): string {
     return '৳' + Number(v).toLocaleString('en-IN');
@@ -37,6 +51,20 @@ function price(v: number): string {
                 </p>
             </div>
 
+            <!-- Module switcher -->
+            <div v-if="modules.length > 1" class="mt-8 flex flex-wrap items-center justify-center gap-2">
+                <button
+                    v-for="m in modules"
+                    :key="m.key"
+                    type="button"
+                    class="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-semibold transition"
+                    :class="activeModule === m.key ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'"
+                    @click="activeModule = m.key"
+                >
+                    {{ m.label }}
+                </button>
+            </div>
+
             <div class="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div
                     v-for="plan in plans"
@@ -52,9 +80,7 @@ function price(v: number): string {
                         </span>
                     </div>
 
-                    <div class="flex items-center gap-2">
-                        <h2 class="text-xl font-bold text-foreground">{{ plan.name }}</h2>
-                    </div>
+                    <h2 class="text-xl font-bold text-foreground">{{ plan.name }}</h2>
                     <p class="mt-2 text-sm text-muted-foreground">{{ plan.description }}</p>
 
                     <div class="mt-6">

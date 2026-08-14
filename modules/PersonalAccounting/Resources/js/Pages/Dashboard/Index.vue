@@ -29,6 +29,7 @@ const props = defineProps<{
     topBudgets: Array<{ budget_id: number; category: string; amount: number; actual: number; usage_percent: number; is_over: boolean }>;
     categories: any[];
     accounts: Array<{ id: number; name: string; type: string; color?: string }>;
+    onboarding: { sample_data_loaded: boolean; has_transactions: boolean };
 }>();
 
 const { openCreate } = useTransactions();
@@ -92,6 +93,33 @@ function quickAdd(type: 'income' | 'expense' | 'transfer') {
 <template>
     <ModuleLayout title="Dashboard" :breadcrumbs="[{ title: 'Personal', href: '/personal/dashboard' }, { title: 'Dashboard', href: '/personal/dashboard' }]">
         <div class="space-y-6">
+            <!-- Onboarding banner -->
+            <section
+                v-if="!onboarding.sample_data_loaded && !onboarding.has_transactions"
+                class="flex flex-col gap-4 rounded-2xl border border-indigo-300/60 bg-indigo-50/50 p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-indigo-500/30 dark:bg-indigo-500/5"
+            >
+                <div class="flex items-start gap-3">
+                    <div class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-500">
+                        <Sparkles class="h-5 w-5" />
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-foreground">Welcome to Personal Accounting 👋</p>
+                        <p class="mt-0.5 text-sm text-muted-foreground">
+                            Start from scratch, or load a set of sample transactions so you can explore every feature right away.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex shrink-0 items-center gap-2">
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+                        @click="router.post(route('personal.dashboard.load-sample-data'))"
+                    >
+                        <Sparkles class="h-4 w-4" /> Load sample data
+                    </button>
+                </div>
+            </section>
+
             <!-- Period switcher -->
             <div class="flex flex-wrap items-center gap-2">
                 <button v-for="p in periods" :key="p.id" type="button"

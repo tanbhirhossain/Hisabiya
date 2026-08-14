@@ -10,11 +10,13 @@ const props = defineProps<{
         features: string[]; permissions: string[];
     };
     payment_methods: Array<{ id: string; label: string; icon: string }>;
+    authenticated?: boolean;
+    user_email?: string | null;
 }>();
 
 const form = useForm({
     plan_id: props.plan.id,
-    email: '',
+    email: props.user_email ?? '',
     password: '',
     name: '',
     company_name: '',
@@ -65,7 +67,16 @@ function submit() {
 
                 <!-- Account + payment -->
                 <form class="space-y-6 lg:col-span-3" @submit.prevent="submit">
-                    <div class="rounded-2xl border border-border bg-card p-6 shadow-sm">
+                    <!-- Adding a module: account already exists -->
+                    <div v-if="authenticated" class="rounded-2xl border border-primary/30 bg-primary/5 p-6 shadow-sm">
+                        <h2 class="text-lg font-semibold text-foreground">Adding a new module</h2>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            You're signed in as <span class="font-medium text-foreground">{{ user_email }}</span>. This module will be added to your existing workspace.
+                        </p>
+                    </div>
+
+                    <!-- New account -->
+                    <div v-else class="rounded-2xl border border-border bg-card p-6 shadow-sm">
                         <h2 class="text-lg font-semibold text-foreground">Create your account</h2>
                         <p class="mt-1 text-sm text-muted-foreground">Your account is created now and activated once payment is confirmed.</p>
                         <div class="mt-5 grid grid-cols-1 gap-4">

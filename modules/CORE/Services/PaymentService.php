@@ -79,4 +79,44 @@ class PaymentService
             'status' => 'pending',
         ]);
     }
+
+    /**
+     * Refund a paid payment: call the provider (real gateway or offline), mark
+     * the payment refunded, and revoke the related subscription access so a
+     * refunded customer no longer has the module.
+     *
+     * @return array{refunded: bool, payment: Payment}
+     */
+    public function refund(Payment $payment, ?string $reason = null): array
+    {
+        $provider = $this->provider($payment->provider);
+
+        $ok = $provider->refund($payment, $reason);
+
+        if ($ok) {
+            $payment->forceFill([
+                'status' => 'refunded',
+                'notes' => $reason ? trim($payment->notes."\n".$reason) : $payment->notes,
+            ])->save();
+
+            // Revoke access: cancel the subscription + revoke module permissions.
+            if ($payment->subscription && $payment->subscription->isActive()) {
+                $payment->subscription->forceFill([
+                    'status' => 'canceled',
+                    'billing_status' => 'canceled',
+                    'auto_renew' => false,
+                ])->save();
+
+                app(SubscriptionService::class)
+                    ->syncPermissionsToUsers($payment->subscription->tenant, $payment->subscription->module, []);
+            }
+        }
+
+        activity('payment')
+            ->performedOn($payment)
+            ->event('refunded')
+            ->log("Payment refunded (provider: {$payment->provider})".($reason ? ": {$reason}" : ''));
+
+        return ['refunded' => $ok, 'payment' => $payment->fresh()];
+    }
 }

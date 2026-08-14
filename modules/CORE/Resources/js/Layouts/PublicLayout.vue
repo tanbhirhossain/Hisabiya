@@ -55,6 +55,11 @@ const user = computed(() => page.props.auth?.user ?? null);
         <footer class="border-t border-border/60 py-8">
             <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 text-sm text-muted-foreground md:flex-row">
                 <p>© {{ new Date().getFullYear() }} {{ page.props.name }}. All rights reserved.</p>
+                <div class="flex items-center gap-5">
+                    <Link :href="route('legal.terms')" class="transition hover:text-foreground">Terms</Link>
+                    <Link :href="route('legal.privacy')" class="transition hover:text-foreground">Privacy</Link>
+                    <Link :href="route('legal.refund')" class="transition hover:text-foreground">Refund</Link>
+                </div>
                 <p>Built for businesses &amp; individuals.</p>
             </div>
         </footer>

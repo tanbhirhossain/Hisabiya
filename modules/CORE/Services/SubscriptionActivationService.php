@@ -13,6 +13,7 @@ class SubscriptionActivationService
 {
     public function __construct(
         private readonly SubscriptionProvisioner $provisioner,
+        private readonly ModuleRegistry $registry,
     ) {
     }
 
@@ -53,19 +54,14 @@ class SubscriptionActivationService
     {
         $modules = $this->provisioner->activeModulesForUser($userId);
 
+        // Exactly one active module: go straight into it.
         if (count($modules) === 1) {
-            $module = $modules[0];
+            $route = $this->registry->routeFor($modules[0]);
 
-            return match ($module) {
-                'personal_accounting' => '/personal/dashboard',
-                default => '/dashboard',
-            };
+            return $route ? route($route) : '/dashboard';
         }
 
-        if (count($modules) > 1) {
-            return '/dashboard'; // chooser screen (could be added later)
-        }
-
+        // Multiple modules (or none): show the chooser landing.
         return '/dashboard';
     }
 }
